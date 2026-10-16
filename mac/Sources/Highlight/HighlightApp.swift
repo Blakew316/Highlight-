@@ -98,6 +98,10 @@ struct HighlightCommands: Commands {
             Button("Highlight All Matches") { model.highlightAllMatches() }
                 .disabled(model.findResults.isEmpty)
             Divider()
+            Button("Highlight Saved Passages") { model.highlightSavedPassagesNow() }
+                .keyboardShortcut("h", modifiers: [.command, .option])
+                .disabled(!hasDocument)
+            Divider()
             Button("Copy All Highlights") { model.copyAllHighlights() }
                 .disabled(model.highlights.isEmpty)
         }

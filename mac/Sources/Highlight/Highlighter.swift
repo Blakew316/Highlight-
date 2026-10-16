@@ -87,6 +87,41 @@ enum Highlighter {
             .map { PlacedAnnotation(annotation: $0, page: page) }
     }
 
+    /// Where `phrase` occurs in the page text, ignoring case and treating any run of
+    /// whitespace (including line breaks) as one space, so a passage that wraps
+    /// differently in another PDF still matches. Ranges index `page.string`.
+    static func occurrences(of phrase: String, on page: PDFPage) -> [NSRange] {
+        let needle = PassageLibrary.normalize(phrase)
+        guard !needle.isEmpty, let raw = page.string else { return [] }
+        let source = raw as NSString
+        var units: [unichar] = []
+        var map: [Int] = []
+        units.reserveCapacity(source.length)
+        map.reserveCapacity(source.length)
+        var lastWasSpace = true
+        for i in 0..<source.length {
+            let unit = source.character(at: i)
+            let isSpace = Unicode.Scalar(unit).map { CharacterSet.whitespacesAndNewlines.contains($0) } ?? false
+            if isSpace {
+                if !lastWasSpace { units.append(32); map.append(i); lastWasSpace = true }
+            } else {
+                units.append(unit); map.append(i); lastWasSpace = false
+            }
+        }
+        let normalized = NSString(characters: units, length: units.count)
+        var result: [NSRange] = []
+        var start = 0
+        while start < normalized.length {
+            let found = normalized.range(of: needle, options: [.caseInsensitive],
+                                         range: NSRange(location: start, length: normalized.length - start))
+            if found.location == NSNotFound { break }
+            let first = map[found.location], last = map[found.location + found.length - 1]
+            result.append(NSRange(location: first, length: last - first + 1))
+            start = found.location + found.length
+        }
+        return result
+    }
+
     /// The page text underneath a highlight.
     static func text(of annotation: PDFAnnotation, on page: PDFPage) -> String {
         // Select along the line's vertical middle: a rect-based selection either

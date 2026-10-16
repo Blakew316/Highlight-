@@ -29,6 +29,8 @@ Your files stay on your computer. The PDF is opened and saved entirely in the br
 
 Highlights already in a PDF, including ones made in Preview or by this site earlier, are loaded as editable highlights. Highlights are saved as plain highlights, with no comment or note text attached.
 
+**Saved passages.** Every passage you highlight is saved. When you open another PDF, such as a new copy of the same form, Highlight looks for the same wording (ignoring case and line breaks) and offers to highlight it in the same color. In the sidebar's **Saved** tab you can choose what happens when a PDF opens (**Ask**, **Highlight** automatically, or **Off**), remove passages you no longer want matched, or highlight saved passages in the open PDF on demand. Inside Claude the list is stored privately for your account, so it follows you across devices. Opened as a plain web page, it stays in that browser. Matching is on exact wording, so a reworded section won't match.
+
 Large PDFs open on page 1 right away while the rest load in the background. Pages far off screen are released from memory. Until you download, your highlights are auto-saved in this browser, and reopening the same file offers to restore them.
 
 ### Limitations
@@ -79,5 +81,7 @@ Then open **Highlight** from Applications, or right-click a PDF in Finder → **
 | Undo / redo | ⌘Z / ⇧⌘Z |
 | Save / Save As | ⌘S / ⇧⌘S (saves in place, writing to a temp file first) |
 | Zoom | ⌘+, ⌘−, ⌘0 actual size, ⌘9 fit |
+
+Saved passages work the same way as on the website: every passage you highlight is saved, and opening a PDF finds the same wording and offers to highlight it (sidebar → **Saved** tab for Ask / Highlight / Off, and Highlight → Highlight Saved Passages, ⌥⌘H, to run it on demand). The list is kept in the app's settings on your Mac.
 
 A highlight that spans several lines appears as one entry in the list and is removed or recolored as one. The app asks before quitting or opening another file with unsaved highlights. It refuses PDFs that need a password, because saving would remove the password. `swift test` (needs full Xcode) runs the tests, and CI builds and tests the app on macOS for every change under `mac/`.
