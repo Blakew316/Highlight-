@@ -12,7 +12,7 @@ struct HighlightApp: App {
             ContentView(model: model)
                 .frame(minWidth: 700, minHeight: 500)
         }
-        .commands { HighlightCommands(model: model) }
+        .commands { HighlightCommands(model: model, library: model.library) }
     }
 }
 
@@ -23,6 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        // After any file Finder asked us to open, reopen the last PDF if nothing is open.
+        DispatchQueue.main.async { DocumentModel.shared.reopenLastDocument() }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -38,6 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 /// Menu bar: File (open/save), Edit (undo/redo), Highlight, View (zoom).
 struct HighlightCommands: Commands {
     @ObservedObject var model: DocumentModel
+    /// Observed too, so Apply Form Template lists templates as they're saved.
+    @ObservedObject var library: PassageLibrary
 
     private var hasDocument: Bool { model.document != nil }
 
@@ -45,6 +49,14 @@ struct HighlightCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("Open…") { model.presentOpenPanel() }
                 .keyboardShortcut("o")
+            Menu("Open Recent") {
+                ForEach(model.availableRecentFiles, id: \.self) { url in
+                    Button(url.lastPathComponent) { model.open(url) }
+                }
+                Divider()
+                Button("Clear Menu") { model.clearRecentFiles() }
+                    .disabled(model.recentFiles.isEmpty)
+            }
         }
 
         CommandGroup(replacing: .saveItem) {
@@ -58,6 +70,16 @@ struct HighlightCommands: Commands {
             Button("Export Highlights as Markdown…") { model.presentExportPanel() }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
                 .disabled(model.highlights.isEmpty)
+            Button("Export Highlighted Pages as PDF…") { model.presentExportPagesPanel() }
+                .keyboardShortcut("e", modifiers: [.command, .option])
+                .disabled(model.highlights.isEmpty)
+            Divider()
+            Button("Highlight a Batch of PDFs…") { model.presentBatchPanel() }
+                .keyboardShortcut("b", modifiers: [.command, .option])
+                .disabled(model.batchProgress != nil)
+            Divider()
+            Button("Export Library…") { model.presentLibraryExportPanel() }
+            Button("Import Library…") { model.presentLibraryImportPanel() }
         }
 
         CommandGroup(replacing: .undoRedo) {
@@ -104,6 +126,25 @@ struct HighlightCommands: Commands {
             Button("Highlight Saved Passages") { model.highlightSavedPassagesNow() }
                 .keyboardShortcut("h", modifiers: [.command, .option])
                 .disabled(!hasDocument)
+            Button("Highlight Phrases…") { model.showingPhraseSheet = true }
+                .keyboardShortcut("l", modifiers: [.command, .option])
+                .disabled(!hasDocument)
+            Divider()
+            Button("Save Highlights as Form Template…") { model.presentSaveTemplatePrompt() }
+                .disabled(model.highlights.isEmpty)
+            Menu("Apply Form Template") {
+                ForEach(library.templates) { template in
+                    Button(template.name) { model.applyTemplate(template) }
+                }
+            }
+            .disabled(!hasDocument || library.templates.isEmpty)
+            Divider()
+            Button("Next Highlight") { model.selectNextHighlight() }
+                .keyboardShortcut(.downArrow, modifiers: [.command, .option])
+                .disabled(model.highlights.isEmpty)
+            Button("Previous Highlight") { model.selectPreviousHighlight() }
+                .keyboardShortcut(.upArrow, modifiers: [.command, .option])
+                .disabled(model.highlights.isEmpty)
             Divider()
             Button("Copy All Highlights") { model.copyAllHighlights() }
                 .disabled(model.highlights.isEmpty)

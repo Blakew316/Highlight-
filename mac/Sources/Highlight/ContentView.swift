@@ -36,6 +36,22 @@ struct ContentView: View {
         .navigationTitle(model.title)
         .navigationSubtitle(model.isDirty ? "Edited" : "")
         .toolbar {
+            ToolbarItem(placement: .status) {
+                if let progress = model.ocrProgress {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small)
+                        Text("Reading scanned pages… \(progress.done) of \(progress.total)")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                    .help("Recognizing text on pages with no text layer, so Find, saved passages and phrase lists work there")
+                } else if model.pageCount > 0 {
+                    Text("Page \(max(model.currentPageNumber, 1)) of \(model.pageCount)")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Page \(max(model.currentPageNumber, 1)) of \(model.pageCount)")
+                }
+            }
             ToolbarItemGroup(placement: .primaryAction) {
                 if !model.findResults.isEmpty {
                     Text("\(model.findIndex + 1) of \(model.findResults.count)")
@@ -70,6 +86,12 @@ struct ContentView: View {
                 .help("Highlight the selected text (⇧⌘H)")
                 .disabled(model.document == nil)
             }
+        }
+        .sheet(isPresented: $model.showingPhraseSheet) {
+            PhraseListSheet(model: model)
+        }
+        .sheet(isPresented: Binding(get: { model.batchProgress != nil }, set: { _ in })) {
+            BatchProgressSheet(model: model)
         }
         .dropDestination(for: URL.self) { urls, _ in
             guard let url = urls.first(where: { $0.pathExtension.lowercased() == "pdf" }) else { return false }
@@ -158,14 +180,22 @@ struct SavedMatchesBanner: View {
     var body: some View {
         let count = model.pendingSavedCount
         HStack(spacing: 12) {
-            Image(systemName: "highlighter")
+            Image(systemName: model.pendingTemplateName == nil ? "highlighter" : "doc.text.magnifyingglass")
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Found \(count) passage\(count == 1 ? "" : "s") you’ve highlighted before")
-                    .fontWeight(.semibold)
-                Text("They match passages you highlighted in other PDFs.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                if let name = model.pendingTemplateName {
+                    Text("This looks like your “\(name)” form")
+                        .fontWeight(.semibold)
+                    Text("Highlight the same \(count) place\(count == 1 ? "" : "s") as last time.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Found \(count) passage\(count == 1 ? "" : "s") you’ve highlighted before")
+                        .fontWeight(.semibold)
+                    Text("They match passages you highlighted in other PDFs.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer(minLength: 8)
             Button("Not Now") { model.dismissPendingSavedMatches() }
@@ -197,7 +227,7 @@ struct SidebarView: View {
         .safeAreaInset(edge: .top) {
             Picker("Sidebar", selection: $tab) {
                 Text("This PDF").tag(Tab.document)
-                Text("Saved (\(library.passages.count))").tag(Tab.saved)
+                Text("Saved (\(library.passages.count + library.templates.count))").tag(Tab.saved)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -233,6 +263,14 @@ struct SavedPassagesView: View {
             .padding(10)
             Divider()
             List {
+                if !library.templates.isEmpty {
+                    Section("Form templates") {
+                        ForEach(library.templates) { template in
+                            TemplateRow(model: model, library: library, template: template)
+                        }
+                    }
+                }
+                Section {
                 if library.passages.isEmpty {
                     Text("Nothing saved yet. Passages you highlight show up here.")
                         .font(.callout)
@@ -260,14 +298,34 @@ struct SavedPassagesView: View {
                         Button("Stop Matching This Passage") { library.remove(passage) }
                     }
                 }
+                } header: {
+                    if !library.templates.isEmpty { Text("Passages") }
+                }
             }
             Divider()
             HStack {
                 Button("Highlight in This PDF") { model.highlightSavedPassagesNow() }
                     .disabled(model.document == nil || library.passages.isEmpty)
                 Spacer()
-                Button("Clear All…") { confirmClear = true }
-                    .disabled(library.passages.isEmpty)
+                Menu {
+                    Button("Highlight Phrases…") { model.showingPhraseSheet = true }
+                        .disabled(model.document == nil)
+                    Button("Save Highlights as Form Template…") { model.presentSaveTemplatePrompt() }
+                        .disabled(model.highlights.isEmpty)
+                    Button("Highlight a Batch of PDFs…") { model.presentBatchPanel() }
+                    Divider()
+                    Button("Export Library…") { model.presentLibraryExportPanel() }
+                    Button("Import Library…") { model.presentLibraryImportPanel() }
+                    Divider()
+                    Button("Clear All Passages…") { confirmClear = true }
+                        .disabled(library.passages.isEmpty)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("More: phrase lists, form templates, batches, and moving your library between the Mac app and the website")
             }
             .buttonStyle(.borderless)
             .padding(8)
@@ -283,10 +341,10 @@ struct SavedPassagesView: View {
 /// Lists every highlight in the document; clicking one scrolls to it.
 struct HighlightsSidebar: View {
     @ObservedObject var model: DocumentModel
-    @State private var selection: HighlightItem.ID?
 
     var body: some View {
-        List(selection: $selection) {
+        let items = model.visibleHighlights
+        List(selection: $model.selectedHighlightID) {
             if model.highlights.isEmpty {
                 Text(model.document == nil
                      ? "No document open."
@@ -294,7 +352,7 @@ struct HighlightsSidebar: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            ForEach(model.highlights) { item in
+            ForEach(items) { item in
                 HighlightRow(item: item)
                     .tag(item.id)
                     .contextMenu {
@@ -307,18 +365,177 @@ struct HighlightsSidebar: View {
                     }
             }
         }
-        .onChange(of: selection) { id in
-            guard let id, let item = model.highlights.first(where: { $0.id == id }) else { return }
-            model.reveal(item)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            ColorFilterBar(model: model)
         }
         .safeAreaInset(edge: .bottom) {
             if !model.highlights.isEmpty {
-                Button("Copy All Highlights") { model.copyAllHighlights() }
-                    .buttonStyle(.borderless)
-                    .padding(8)
-                    .help("Copy the text of every highlight to the clipboard")
+                HStack {
+                    Button("Copy All") { model.copyAllHighlights() }
+                        .help("Copy the text of every highlight to the clipboard")
+                    Spacer()
+                    Button { model.selectPreviousHighlight() } label: { Image(systemName: "chevron.up") }
+                        .help("Previous highlight (⌥⌘↑)")
+                    Button { model.selectNextHighlight() } label: { Image(systemName: "chevron.down") }
+                        .help("Next highlight (⌥⌘↓)")
+                }
+                .buttonStyle(.borderless)
+                .padding(8)
             }
         }
+    }
+}
+
+/// Filters the highlights list by color; shown once highlights use more than one color.
+struct ColorFilterBar: View {
+    @ObservedObject var model: DocumentModel
+
+    var body: some View {
+        let counts = Dictionary(grouping: model.highlights, by: \.paletteColor).mapValues(\.count)
+        if counts.count > 1 || model.colorFilter != nil {
+            HStack(spacing: 6) {
+                filterButton(nil, label: Text("All"), count: model.highlights.count)
+                ForEach(HighlightColor.allCases.filter { counts[$0] != nil }) { option in
+                    filterButton(option, label: Circle().fill(option.swatch).frame(width: 10, height: 10), count: counts[option] ?? 0)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.bottom, 6)
+        }
+    }
+
+    private func filterButton(_ option: HighlightColor?, label: some View, count: Int) -> some View {
+        let isOn = model.colorFilter == option
+        return Button {
+            model.colorFilter = option
+        } label: {
+            HStack(spacing: 4) {
+                label
+                Text("\(count)").monospacedDigit()
+            }
+            .font(.caption)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(isOn ? Color.accentColor.opacity(0.22) : Color.primary.opacity(0.06)))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(option.map { "Show only \($0.name.lowercased()) highlights" } ?? "Show all highlights")
+        .accessibilityLabel(option.map { "\($0.name), \(count)" } ?? "All, \(count)")
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+}
+
+/// A saved form template in the Saved tab.
+struct TemplateRow: View {
+    @ObservedObject var model: DocumentModel
+    @ObservedObject var library: PassageLibrary
+    let template: FormTemplate
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "doc.text")
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(template.name).lineLimit(1)
+                Text("\(template.highlights.count) highlight\(template.highlights.count == 1 ? "" : "s") · \(template.pageCount) page\(template.pageCount == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 4)
+            Button("Apply") { model.applyTemplate(template) }
+                .disabled(model.document == nil)
+                .help("Highlight the same places in this PDF")
+            Button {
+                library.removeTemplate(template)
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .help("Delete this template")
+            .accessibilityLabel("Delete template")
+        }
+        .buttonStyle(.borderless)
+        .contextMenu {
+            Button("Apply to This PDF") { model.applyTemplate(template) }
+                .disabled(model.document == nil)
+            Button("Delete Template") { library.removeTemplate(template) }
+        }
+    }
+}
+
+/// Paste a list of phrases to highlight every occurrence of each.
+struct PhraseListSheet: View {
+    @ObservedObject var model: DocumentModel
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("phraseList.text") private var text = ""
+    @AppStorage("phraseList.save") private var save = true
+    @State private var result: String?
+
+    var body: some View {
+        let phrases = DocumentModel.phrases(from: text)
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Highlight Phrases").font(.headline)
+            Text("Paste words or phrases, one per line. Every place each one appears is highlighted in \(model.color.name.lowercased()).")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            TextEditor(text: $text)
+                .font(.body)
+                .frame(minHeight: 160)
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.primary.opacity(0.15)))
+            Toggle("Also save them for PDFs I open later", isOn: $save)
+            if let result {
+                Text(result)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            HStack {
+                ColorPalette(selection: $model.color)
+                Spacer()
+                Button("Close") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Highlight \(phrases.count == 1 ? "1 Phrase" : "\(phrases.count) Phrases")") {
+                    let outcome = model.highlightPhrases(phrases, save: save)
+                    if outcome.missing.isEmpty {
+                        dismiss()
+                    } else {
+                        let found = phrases.count - outcome.missing.count
+                        result = "Highlighted \(found) of \(phrases.count). Not in this PDF: " + outcome.missing.prefix(6).joined(separator: ", ") + (outcome.missing.count > 6 ? "…" : "")
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(phrases.isEmpty || model.document == nil)
+            }
+        }
+        .padding(18)
+        .frame(width: 440)
+        .onChange(of: text) { _ in result = nil }
+    }
+}
+
+/// Progress while a batch of PDFs is highlighted.
+struct BatchProgressSheet: View {
+    @ObservedObject var model: DocumentModel
+
+    var body: some View {
+        let progress = model.batchProgress ?? JobProgress(done: 0, total: 0)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Highlighting PDFs…").font(.headline)
+            ProgressView(value: progress.fraction)
+            HStack {
+                Text("\(progress.done) of \(progress.total)")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Stop") { model.cancelBatch() }
+                    .keyboardShortcut(.cancelAction)
+            }
+        }
+        .padding(18)
+        .frame(width: 340)
+        .interactiveDismissDisabled()
     }
 }
 

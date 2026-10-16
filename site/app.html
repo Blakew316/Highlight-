@@ -87,7 +87,7 @@ svg { display: block; }
   color: var(--muted); font-size: 14px; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.title .file::before { content: "/"; margin-right: 10px; color: var(--line); }
+
 .title .dirty { color: var(--muted); font-size: 12px; padding: 2px 7px; border-radius: 999px; background: var(--fill); flex: none; }
 .tools { display: flex; align-items: center; gap: 4px; }
 .group { display: flex; align-items: center; gap: 2px; }
@@ -317,6 +317,87 @@ dialog .row .btn:hover { background: var(--fill); }
 }
 #scrim { position: fixed; inset: 0; z-index: 19; background: rgba(0, 0, 0, .3); }
 
+/* File name doubles as the Recent files menu. */
+.title .file { border: 0; background: none; font: inherit; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.title .file:hover { background: var(--fill); }
+.title .file::after { content: " ▾"; font-size: .7em; opacity: .6; }
+#recents {
+  position: fixed; z-index: 35; min-width: 260px; max-width: min(360px, calc(100vw - 24px));
+  background: var(--surface); color: var(--ink); border-radius: 14px; padding: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .22), 0 0 0 .5px var(--line);
+}
+#recents .hd { font-size: 12px; color: var(--muted); padding: 6px 10px 4px; }
+#recents button {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; width: 100%; text-align: left;
+  border: 0; background: none; padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit; color: inherit;
+}
+#recents button:hover, #recents button:focus-visible { background: var(--fill); outline: none; }
+#recents .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+#recents .meta { grid-column: 1; font-size: 12px; color: var(--muted); }
+#recents .cur { grid-row: 1 / span 2; grid-column: 2; align-self: center; color: var(--accent); font-size: 13px; }
+#recents .act { color: var(--accent); }
+#recents hr { border: 0; border-top: .5px solid var(--line); margin: 4px 6px; }
+
+/* Page indicator, shown briefly while scrolling. */
+#pageInd {
+  position: fixed; z-index: 16; left: 50%; transform: translateX(-50%);
+  bottom: calc(18px + var(--toolbar-h) + env(safe-area-inset-bottom, 0px));
+  background: var(--hud); color: var(--hud-ink); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+  padding: 6px 12px; border-radius: 999px; pointer-events: none; opacity: 0; transition: opacity .25s ease;
+}
+#pageInd.show { opacity: 1; }
+.color-dot { width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .25), 0 0 0 2px var(--surface), 0 0 0 3px var(--line); }
+.narrow-only { display: none !important; }
+
+/* Menus (Export, More) */
+.menu {
+  position: fixed; z-index: 35; min-width: 230px; max-width: min(320px, calc(100vw - 24px));
+  background: var(--surface); color: var(--ink); border-radius: 14px; padding: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .22), 0 0 0 .5px var(--line);
+}
+.menu button {
+  display: block; width: 100%; text-align: left; border: 0; background: none; padding: 9px 10px; border-radius: 8px;
+  cursor: pointer; font: inherit; color: inherit; touch-action: manipulation;
+}
+.menu button:hover, .menu button:focus-visible { background: var(--fill); outline: none; }
+.menu button:disabled { opacity: .4; cursor: default; background: none; }
+.menu button.danger { color: var(--danger); }
+.menu .sub { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
+.menu hr { border: 0; border-top: .5px solid var(--line); margin: 4px 6px; }
+
+/* Color filter, the selected highlight, and Saved-tab sections */
+.filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border: 0; border-radius: 999px;
+  background: var(--fill); font-size: 12px; font-weight: 500; cursor: pointer; font-variant-numeric: tabular-nums;
+}
+.chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.chip .dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .2); }
+.item[aria-current="true"] { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.side-foot .spacer { flex: 1; }
+.side-foot .btn.icon { color: var(--accent); }
+.list .sec { padding: 14px 16px 4px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: default; }
+.item .tpl-ico { width: 18px; height: 18px; margin-top: 1px; margin-left: -4px; color: var(--muted); }
+.item .acts { display: flex; gap: 6px; align-items: center; }
+.item .acts .btn { height: 26px; padding: 0 10px; font-size: 13px; color: var(--accent); background: var(--fill); border-radius: 999px; }
+.item .acts .x { opacity: 1; }
+
+/* Form sheets: phrase list, names, batch progress */
+dialog.form { width: min(440px, calc(100vw - 32px)); text-align: left; }
+dialog.form h3 { margin: 18px 18px 4px; }
+dialog.form p { margin: 0 18px 12px; }
+dialog.form .body { padding: 0 18px 16px; display: flex; flex-direction: column; gap: 10px; }
+dialog.form textarea, dialog.form input[type="text"] {
+  width: 100%; box-sizing: border-box; border: 0; border-radius: 10px; background: var(--fill);
+  padding: 10px 12px; font: inherit; font-size: 16px; color: inherit; resize: vertical;
+}
+dialog.form textarea { min-height: 150px; }
+dialog.form textarea:focus, dialog.form input[type="text"]:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+dialog.form .check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+dialog.form .note { font-size: 13px; color: var(--muted); margin: 0; }
+dialog.form .note:empty { display: none; }
+dialog.form progress { width: 100%; height: 6px; accent-color: var(--accent); }
+
 /* ---------- touch screens ---------- */
 .btn, .swatch, .tab, .item .x { touch-action: manipulation; }
 @media (pointer: coarse) {
@@ -338,6 +419,7 @@ dialog .row .btn:hover { background: var(--fill); }
   .app-mark, .title .name { display: none; }
   .title .file { font-size: 17px; font-weight: 600; color: var(--ink); max-width: 100%; }
   .title .file::before { display: none; }
+  .title .file { max-width: 100%; }
   .title .dirty { background: none; padding: 0; font-size: 11px; }
   .lead .btn { padding: 0 4px; font-size: 17px; font-weight: 400; height: 40px; }
   .lead .btn svg { display: none; }
@@ -359,6 +441,7 @@ dialog .row .btn:hover { background: var(--fill); }
   .tools .btn:disabled { opacity: .3; }
   .tools #areaBtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-radius: 12px; }
   .swatch-group, .zoom-group, .sep, .hide-narrow, .txt, #modeBtn { display: none !important; }
+  .narrow-only { display: inline-flex !important; }
   #sideBtn { position: relative; }
   #sideCount { position: absolute; top: 6px; right: 2px; background: var(--accent); color: var(--accent-ink); }
 
@@ -401,7 +484,7 @@ dialog .row .btn:hover { background: var(--fill); }
   <div class="title">
     <svg class="app-mark" viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="6" fill="#0a5fd6"/><rect x="5" y="6.5" width="13" height="2.4" rx="1.2" fill="#fff" opacity=".9"/><rect x="4" y="11" width="18" height="4.6" rx="1.2" fill="#ffd60a"/><rect x="6" y="12.3" width="13" height="2" rx="1" fill="#0a5fd6"/><rect x="5" y="17.6" width="10" height="2.4" rx="1.2" fill="#fff" opacity=".9"/></svg>
     <span class="name">Highlight</span>
-    <span class="file" id="fileName"></span>
+    <button class="file" id="fileName" type="button" aria-haspopup="menu" aria-expanded="false" title="Recent files"></button>
     <span class="dirty" id="dirty" hidden>Edited</span>
   </div>
   <nav class="tools" aria-label="Tools">
@@ -411,6 +494,9 @@ dialog .row .btn:hover { background: var(--fill); }
     <button class="btn mouse-only" id="modeBtn" aria-pressed="false" title="When on, text is highlighted as soon as you finish selecting it">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l4.5 4.5-7 7H5v-4.5z"/><path d="M3 17.5h9"/></svg>
       <span class="txt">Auto-highlight</span>
+    </button>
+    <button class="btn icon narrow-only" id="colorBtn" aria-label="Highlight color" title="Highlight color">
+      <span class="color-dot" id="colorDot"></span>
     </button>
     <button class="btn" id="areaBtn" aria-pressed="false" title="Highlight an area: drag a box over anything, such as signature lines, form fields or scanned text (B)">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 2.2" aria-hidden="true"><rect x="3" y="4.5" width="14" height="11" rx="1.5"/></svg>
@@ -480,10 +566,18 @@ dialog .row .btn:hover { background: var(--fill); }
       </button>
     </div>
     <div id="docPanel" role="tabpanel" aria-labelledby="tabDoc" style="display:contents">
+      <div class="filters" id="filters" role="group" aria-label="Show highlights of one color" hidden></div>
       <ul class="list" id="list"></ul>
       <div class="side-foot">
         <button class="btn" id="copyBtn">Copy Text</button>
-        <button class="btn" id="mdBtn">Export Markdown</button>
+        <button class="btn" id="exportBtn" aria-haspopup="menu">Export…</button>
+        <span class="spacer"></span>
+        <button class="btn icon" id="prevHl" aria-label="Previous highlight" title="Previous highlight ([ or ⌥↑)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 12.5L10 8l4.5 4.5"/></svg>
+        </button>
+        <button class="btn icon" id="nextHl" aria-label="Next highlight" title="Next highlight (] or ⌥↓)">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 7.5L10 12l4.5-4.5"/></svg>
+        </button>
       </div>
     </div>
     <div id="libPanel" role="tabpanel" aria-labelledby="tabLib" hidden style="display:contents">
@@ -499,7 +593,10 @@ dialog .row .btn:hover { background: var(--fill); }
       <ul class="list" id="libList"></ul>
       <div class="side-foot">
         <button class="btn" id="libApply">Highlight in This PDF</button>
-        <button class="btn" id="libClear">Clear All</button>
+        <span class="spacer"></span>
+        <button class="btn icon" id="libMore" aria-haspopup="menu" aria-label="More" title="Phrase lists, form templates, batches, import and export">
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="4.5" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="15.5" cy="10" r="1.6"/></svg>
+        </button>
       </div>
     </div>
   </aside>
@@ -510,6 +607,11 @@ dialog .row .btn:hover { background: var(--fill); }
 <div id="scrim" hidden></div>
 
 <div id="pop" hidden role="toolbar" aria-label="Highlight actions"></div>
+<div id="recents" hidden role="menu" aria-label="Recent files"></div>
+<div id="menu" class="menu" hidden role="menu"></div>
+<input type="file" id="libInput" accept=".json,application/json" class="sr" tabindex="-1">
+<input type="file" id="batchInput" accept="application/pdf,.pdf" multiple class="sr" tabindex="-1">
+<div id="pageInd" aria-hidden="true"></div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <div class="drop-hint" id="dropHint" hidden>Drop a PDF to open it</div>
 <dialog id="confirmDlg">
@@ -521,8 +623,38 @@ dialog .row .btn:hover { background: var(--fill); }
   </div>
 </dialog>
 
+<dialog id="phraseDlg" class="form">
+  <h3>Highlight Phrases</h3>
+  <p>Paste words or phrases, one per line. Every place each one appears is highlighted in <span id="phraseColor">yellow</span>.</p>
+  <div class="body">
+    <textarea id="phraseText" placeholder="Print Name&#10;Title&#10;Date of Birth" aria-label="Phrases, one per line"></textarea>
+    <label class="check"><input type="checkbox" id="phraseSave" checked> Also save them for PDFs I open later</label>
+    <p class="note" id="phraseResult" aria-live="polite"></p>
+  </div>
+  <div class="row">
+    <button class="btn" type="button" id="phraseCancel">Close</button>
+    <button class="btn primary" type="button" id="phraseGo">Highlight</button>
+  </div>
+</dialog>
+<dialog id="nameDlg" class="form">
+  <h3 id="nameTitle">Save as Form Template</h3>
+  <p id="nameText"></p>
+  <div class="body"><input type="text" id="nameInput" autocomplete="off" aria-label="Name"></div>
+  <div class="row">
+    <button class="btn" type="button" id="nameCancel">Cancel</button>
+    <button class="btn primary" type="button" id="nameOk">Save</button>
+  </div>
+</dialog>
+<dialog id="batchDlg" class="form">
+  <h3>Highlighting PDFs…</h3>
+  <p id="batchText" aria-live="polite"></p>
+  <div class="body"><progress id="batchBar" max="1" value="0"></progress></div>
+  <div class="row"><button class="btn" type="button" id="batchStop">Stop</button></div>
+</dialog>
+
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="preload" as="script" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script>
 (() => {
 "use strict";
@@ -547,6 +679,8 @@ const S = {
   highlights: [],     // {id, page, rects:[[x1,y1,x2,y2]] in PDF user space, rgb, text}
   color: "yellow", auto: false,
   undo: [], redo: [], dirty: false,
+  sel: null,          // id of the highlight selected in the list (Next/Previous)
+  filter: null,       // show only highlights of this color key in the list
 };
 let nextId = 1;
 let openToken = 0;
@@ -577,6 +711,37 @@ function confirmDialog(title, text, okLabel) {
     dlg.showModal();
   });
 }
+/* The nearest palette color to an RGB triple (for filtering and the library file). */
+function nearestKey(rgb) {
+  let best = "yellow", dist = Infinity;
+  for (const k of COLOR_KEYS) {
+    const c = COLORS[k].rgb, d = (c[0] - rgb[0]) ** 2 + (c[1] - rgb[1]) ** 2 + (c[2] - rgb[2]) ** 2;
+    if (d < dist) { dist = d; best = k; }
+  }
+  return best;
+}
+const idle = (fn) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 4000 }) : setTimeout(fn, 1200));
+const yieldToUI = () => new Promise((r) => setTimeout(r, 0));
+
+/* Libraries only needed for saving and batches load on first use (or when the
+   page is idle), so opening the site only waits for the PDF renderer. */
+const CDN = {
+  pdfLib: "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js",
+  jszip: "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+};
+const scriptLoads = {};
+function loadScript(url) {
+  return scriptLoads[url] || (scriptLoads[url] = new Promise((resolve, reject) => {
+    const el = document.createElement("script");
+    el.src = url; el.async = true;
+    el.onload = resolve;
+    el.onerror = () => { delete scriptLoads[url]; el.remove(); reject(new Error("Couldn’t load part of the app. Check your internet connection and try again.")); };
+    document.head.append(el);
+  }));
+}
+async function pdfLib() { if (!window.PDFLib) await loadScript(CDN.pdfLib); return window.PDFLib; }
+async function jsZip() { if (!window.JSZip) await loadScript(CDN.jszip); return window.JSZip; }
+
 const downloadsP = (window.claude && typeof window.claude.use === "function")
   ? window.claude.use("downloads").catch(() => null) : Promise.resolve(null);
 
@@ -584,11 +749,7 @@ const downloadsP = (window.claude && typeof window.claude.use === "function")
 async function openFile(file) {
   if (!file) return;
   if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") { toast(`“${file.name}” isn’t a PDF.`); return; }
-  if (S.dirty && !S.sample) {
-    const ok = await confirmDialog("Discard unsaved highlights?",
-      `Your highlights in “${S.name}” haven’t been downloaded yet. Opening another file will lose them.`, "Open anyway");
-    if (!ok) return;
-  }
+  if (!(await confirmLeave())) return;
   const bytes = new Uint8Array(await file.arrayBuffer());
   await openBytes(bytes, file.name, false);
 }
@@ -630,6 +791,7 @@ async function openBytes(bytes, name, sample) {
                    renderedScale: 0, rendering: false, textContent: null, hasImported: false });
   }
   els.fileName.textContent = sample ? "Sample document" : name;
+  if (!sample) recentRemember(bytes, name, S.key);
   els.fileName.title = name;
   els.viewer.scrollTop = 0;
   fitWidth();
@@ -659,12 +821,24 @@ async function loadPages(pdf, token) {
   updateUI(); renderLibrary();
   offerRestore();
   autoMatchSavedPassages(token);
+  // Fetch the PDF writer in the background so Download is instant.
+  idle(() => pdfLib().catch(() => {}));
 }
 
 /* Existing highlight annotations become editable highlights. */
 async function importHighlights(p, index) {
+  for (const h of await readHighlights(p.pdfPage)) {
+    h.id = nextId++; h.page = index;
+    h.text = await textUnder(p, h.rects);
+    S.highlights.push(h);
+    p.hasImported = true;
+  }
+}
+/* The highlight annotations on a page, as {rects, rgb}. */
+async function readHighlights(pdfPage) {
+  const out = [];
   let annots = [];
-  try { annots = await p.pdfPage.getAnnotations(); } catch { return; }
+  try { annots = await pdfPage.getAnnotations(); } catch { return out; }
   for (const a of annots) {
     if (a.subtype !== "Highlight") continue;
     let rects = [];
@@ -677,12 +851,10 @@ async function importHighlights(p, index) {
       rects = [[a.rect[0], a.rect[1], a.rect[2], a.rect[3]]];
     }
     if (!rects.length) continue;
-    const rgb = a.color && a.color.length >= 3 ? [a.color[0] / 255, a.color[1] / 255, a.color[2] / 255] : COLORS.yellow.rgb;
-    const h = { id: nextId++, page: index, rects, rgb, text: "" };
-    h.text = await textUnder(p, rects);
-    S.highlights.push(h);
-    p.hasImported = true;
+    const rgb = a.color && a.color.length >= 3 ? [a.color[0] / 255, a.color[1] / 255, a.color[2] / 255] : COLORS.yellow.rgb.slice();
+    out.push({ rects, rgb, text: "" });
   }
+  return out;
 }
 function bbox(points) {
   const xs = points.map((pt) => pt[0]), ys = points.map((pt) => pt[1]);
@@ -710,10 +882,11 @@ function fitWidth() {
 }
 function setScale(scale) {
   S.scale = scale;
+  const byPage = highlightsByPage();
   for (const p of S.pages) {
     sizePage(p);
     if (p.renderedScale !== scale) { p.text.textContent = ""; }
-    redrawPagesAndFind(p);
+    redrawPagesAndFind(p, byPage);
   }
   $("zoomFit").textContent = `${Math.round(scale * 100)}%`;
   renderVisible();
@@ -783,12 +956,18 @@ async function renderPage(p) {
   if (p.renderedScale !== S.scale) renderVisible();
 }
 
-function drawHighlights(p) {
-  const index = S.pages.indexOf(p);
+/* Highlights grouped by page, so redrawing many pages doesn't rescan every highlight per page. */
+function highlightsByPage() {
+  const m = new Map();
+  for (const h of S.highlights) { let a = m.get(h.page); if (!a) m.set(h.page, (a = [])); a.push(h); }
+  return m;
+}
+function drawHighlights(p, onPage = null) {
   p.hl.textContent = "";
   if (!p.viewport) return;
-  for (const h of S.highlights) {
-    if (h.page !== index) continue;
+  if (!onPage) { const index = S.pages.indexOf(p); onPage = S.highlights.filter((h) => h.page === index); }
+  const frag = document.createDocumentFragment();
+  for (const h of onPage) {
     for (const r of h.rects) {
       const v = p.viewport.convertToViewportRectangle(r);
       const div = document.createElement("div");
@@ -798,12 +977,19 @@ function drawHighlights(p) {
         width: `${Math.abs(v[2] - v[0])}px`, height: `${Math.abs(v[3] - v[1])}px`,
         background: css(h.rgb, 0.55),
       });
-      p.hl.appendChild(div);
+      frag.appendChild(div);
     }
   }
+  p.hl.appendChild(frag);
 }
-function redrawPagesAndFind(p) { drawHighlights(p); drawFind(p); }
-function redrawPages(indexes) { for (const i of new Set(indexes)) if (S.pages[i]) drawHighlights(S.pages[i]); }
+function redrawPagesAndFind(p, byPage = null) {
+  drawHighlights(p, byPage ? byPage.get(S.pages.indexOf(p)) || [] : null);
+  drawFind(p);
+}
+function redrawPages(indexes) {
+  const byPage = highlightsByPage();
+  for (const i of new Set(indexes)) if (S.pages[i]) drawHighlights(S.pages[i], byPage.get(i) || []);
+}
 
 /* ---------- selection → rectangles ---------- */
 function pageAt(x, y) {
@@ -883,11 +1069,9 @@ function apply(action, dir) {
   const touched = [];
   if (action.type === "add" || action.type === "remove") {
     const adding = (action.type === "add") === (dir !== "undo");
-    for (const h of action.items) {
-      touched.push(h.page);
-      if (adding) S.highlights.push(h);
-      else S.highlights = S.highlights.filter((x) => x.id !== h.id);
-    }
+    for (const h of action.items) touched.push(h.page);
+    if (adding) for (const h of action.items) S.highlights.push(h);
+    else { const ids = new Set(action.items.map((h) => h.id)); S.highlights = S.highlights.filter((x) => !ids.has(x.id)); }
   } else if (action.type === "recolor") {
     for (const c of action.items) {
       const h = S.highlights.find((x) => x.id === c.id);
@@ -992,7 +1176,7 @@ function setAreaMode(on) {
   if (S.area) {
     if (S.auto) { S.auto = false; $("modeBtn").setAttribute("aria-pressed", "false"); }
     window.getSelection().removeAllRanges(); hidePop();
-    toast(isTouch() ? "Drag over an area to highlight it. Tap the box button again to scroll." : "Drag a box over any area to highlight it.", 4500);
+    toast(isTouch() ? "Drag over the area to highlight it" : "Drag a box over any area to highlight it. Press Esc when done.", 3500);
   }
 }
 function bindArea() {
@@ -1028,6 +1212,8 @@ function bindArea() {
     const rect = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])].map(num);
     const text = await textUnder(p, [rect]).catch(() => "");
     commit({ type: "add", items: [{ id: nextId++, page: S.pages.indexOf(p), rects: [rect], rgb: COLORS[S.color].rgb.slice(), text }] });
+    // On touch screens area mode blocks scrolling, so it ends after each box.
+    if (e.pointerType !== "mouse") { S.area = false; $("areaBtn").setAttribute("aria-pressed", "false"); els.pages.classList.remove("area-mode"); }
   };
   els.pages.addEventListener("pointerup", finish);
   els.pages.addEventListener("pointercancel", cancel);
@@ -1079,18 +1265,51 @@ function bindPinch() {
 }
 
 /* ---------- sidebar ---------- */
+/* Reading order: page, then top to bottom (PDF y grows upward), then left to right. */
 function sortedHighlights() {
-  return S.highlights.slice().sort((a, b) =>
-    a.page - b.page || Math.max(...b.rects.map((r) => r[3])) - Math.max(...a.rects.map((r) => r[3])) ||
-    Math.min(...a.rects.map((r) => r[0])) - Math.min(...b.rects.map((r) => r[0])));
+  return S.highlights.map((h) => {
+    let top = -Infinity, left = Infinity;
+    for (const r of h.rects) { if (r[3] > top) top = r[3]; if (r[0] < left) left = r[0]; }
+    return { h, top, left };
+  }).sort((a, b) => a.h.page - b.h.page || b.top - a.top || a.left - b.left).map((x) => x.h);
+}
+/* The list after the color filter. */
+function visibleHighlights() {
+  const all = sortedHighlights();
+  return S.filter ? all.filter((h) => nearestKey(h.rgb) === S.filter) : all;
+}
+function renderFilters() {
+  const box = $("filters");
+  const counts = {};
+  for (const h of S.highlights) { const k = nearestKey(h.rgb); counts[k] = (counts[k] || 0) + 1; }
+  const keys = COLOR_KEYS.filter((k) => counts[k]);
+  if (S.filter && !counts[S.filter]) S.filter = null;
+  box.hidden = keys.length < 2 && !S.filter;
+  if (box.hidden) { box.textContent = ""; return; }
+  box.textContent = "";
+  const chip = (key, label, n) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.setAttribute("aria-pressed", String(S.filter === key));
+    if (key) { const d = document.createElement("span"); d.className = "dot"; d.style.background = css(COLORS[key].rgb); b.append(d); }
+    b.append(`${label ? label + " " : ""}${n}`);
+    b.setAttribute("aria-label", `${key ? COLORS[key].name : "All"}, ${n}`);
+    b.addEventListener("click", () => { S.filter = key; S.sel = null; renderSidebar(); });
+    box.append(b);
+  };
+  chip(null, "All", S.highlights.length);
+  for (const k of keys) chip(k, "", counts[k]);
 }
 function renderSidebar() {
   const list = els.list;
   list.textContent = "";
-  const items = sortedHighlights();
-  $("listCount").textContent = items.length ? `· ${items.length}` : "";
-  $("sideCount").textContent = items.length;
-  $("sideCount").hidden = !items.length;
+  if (S.sel && !S.highlights.some((h) => h.id === S.sel)) S.sel = null;
+  renderFilters();
+  const items = visibleHighlights();
+  listItems = items; listShown = 0;
+  $("listCount").textContent = S.highlights.length ? `· ${S.highlights.length}` : "";
+  $("sideCount").textContent = S.highlights.length;
+  $("sideCount").hidden = !S.highlights.length;
+  $("prevHl").disabled = $("nextHl").disabled = !items.length;
   if (!items.length) {
     const li = document.createElement("li"); li.className = "empty";
     li.innerHTML = S.pdf
@@ -1099,24 +1318,74 @@ function renderSidebar() {
     list.append(li);
     return;
   }
-  for (const h of items) {
-    const li = document.createElement("li");
-    li.className = "item"; li.tabIndex = 0;
-    const bar = document.createElement("span"); bar.className = "bar-c"; bar.style.background = css(h.rgb);
-    const body = document.createElement("div");
-    const t = document.createElement("span"); t.className = "t"; t.textContent = h.text || "Highlighted area";
-    if (!h.text) t.style.color = "var(--muted)";
-    const pg = document.createElement("span"); pg.className = "p"; pg.textContent = `p. ${h.page + 1}`;
-    body.append(t, pg);
-    const x = document.createElement("button"); x.className = "x"; x.type = "button"; x.textContent = "×";
-    x.setAttribute("aria-label", "Remove highlight");
-    x.addEventListener("click", (e) => { e.stopPropagation(); removeHighlight(h.id); });
-    li.append(bar, body, x);
-    const go = () => reveal(h);
-    li.addEventListener("click", go);
-    li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
-    list.append(li);
+  appendListItems(LIST_CHUNK);
+}
+/* The list is built in chunks as it scrolls, so thousands of highlights stay quick. */
+const LIST_CHUNK = 150;
+let listItems = [], listShown = 0;
+const listObserver = "IntersectionObserver" in window
+  ? new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) appendListItems(LIST_CHUNK); }, { root: els.list, rootMargin: "400px" })
+  : null;
+function appendListItems(n) {
+  const list = els.list;
+  const more = list.querySelector(".more");
+  if (more) { if (listObserver) listObserver.unobserve(more); more.remove(); }
+  const frag = document.createDocumentFragment();
+  const end = Math.min(listItems.length, listShown + n);
+  for (let k = listShown; k < end; k++) frag.append(listItem(listItems[k]));
+  listShown = end;
+  if (listShown < listItems.length) {
+    const li = document.createElement("li"); li.className = "empty more";
+    li.textContent = `${listItems.length - listShown} more…`;
+    li.addEventListener("click", () => appendListItems(LIST_CHUNK));
+    frag.append(li);
+    if (listObserver) listObserver.observe(li);
   }
+  list.append(frag);
+}
+function listItem(h) {
+  const li = document.createElement("li");
+  li.className = "item"; li.tabIndex = 0; li.dataset.id = h.id;
+  if (h.id === S.sel) li.setAttribute("aria-current", "true");
+  const bar = document.createElement("span"); bar.className = "bar-c"; bar.style.background = css(h.rgb);
+  const body = document.createElement("div");
+  const t = document.createElement("span"); t.className = "t"; t.textContent = h.text || "Highlighted area";
+  if (!h.text) t.style.color = "var(--muted)";
+  const pg = document.createElement("span"); pg.className = "p"; pg.textContent = `p. ${h.page + 1}`;
+  body.append(t, pg);
+  const x = document.createElement("button"); x.className = "x"; x.type = "button"; x.textContent = "×";
+  x.setAttribute("aria-label", "Remove highlight");
+  x.addEventListener("click", (e) => { e.stopPropagation(); removeHighlight(h.id); });
+  li.append(bar, body, x);
+  const go = () => selectHighlight(h);
+  li.addEventListener("click", go);
+  li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  return li;
+}
+/* Selects a highlight in the list and scrolls the page to it. */
+function selectHighlight(h) {
+  S.sel = h.id;
+  const at = listItems.indexOf(h);
+  if (at >= listShown) appendListItems(at - listShown + 20);
+  for (const li of els.list.querySelectorAll(".item")) {
+    const on = Number(li.dataset.id) === h.id;
+    if (on) { li.setAttribute("aria-current", "true"); li.scrollIntoView({ block: "nearest" }); }
+    else li.removeAttribute("aria-current");
+  }
+  reveal(h);
+}
+/* Next or previous highlight in the list: from the selected one, or else from the page on screen. */
+function stepHighlight(dir) {
+  const items = visibleHighlights();
+  if (!items.length) return;
+  let i = items.findIndex((h) => h.id === S.sel);
+  if (i !== -1) i = (i + dir + items.length) % items.length;
+  else {
+    const cur = currentPageIndex();
+    if (dir > 0) { i = items.findIndex((h) => h.page >= cur); if (i === -1) i = 0; }
+    else { i = items.length - 1; while (i > 0 && items[i].page > cur) i--; }
+  }
+  selectHighlight(items[i]);
 }
 function reveal(h) {
   const p = S.pages[h.page];
@@ -1132,6 +1401,7 @@ function reveal(h) {
 /* ---------- toolbar state ---------- */
 function setColor(key) {
   S.color = key;
+  const dot = $("colorDot"); if (dot) dot.style.background = css(COLORS[key].rgb);
   for (const b of $("swatches").children) b.setAttribute("aria-checked", String(b.dataset.key === key));
 }
 function setSide(open) {
@@ -1148,34 +1418,35 @@ function updateUI() {
   $("saveBtn").disabled = !has || !S.loaded;
   $("saveBtn").title = has && !S.loaded ? "Still loading pages…" : "";
   $("undoBtn").disabled = !S.undo.length;
-  $("copyBtn").disabled = $("mdBtn").disabled = !S.highlights.length;
+  $("copyBtn").disabled = $("exportBtn").disabled = !S.highlights.length;
   els.dirty.hidden = !(S.dirty && !S.sample);
 }
 
 /* ---------- saving ---------- */
-async function buildPdf() {
-  const { PDFDocument, PDFName, PDFString } = PDFLib;
+/* Writes `highlights` into a copy of `bytes`: highlights already in the file are
+   replaced by the given set. With `onlyPages`, the result holds just those pages. */
+async function buildPdf(bytes = S.bytes, highlights = S.highlights, onlyPages = null) {
+  const { PDFDocument, PDFName, PDFString } = await pdfLib();
   let doc;
   try {
-    doc = await PDFDocument.load(S.bytes, { updateMetadata: false });
+    doc = await PDFDocument.load(bytes, { updateMetadata: false });
   } catch (e) {
     if (/encrypt/i.test(String(e && e.message))) throw new Error("This PDF is encrypted, so highlights can’t be written into it. Remove its security settings and try again.");
     throw new Error("This PDF couldn’t be re-saved. It may use features the saver doesn’t support.");
   }
-  const ctx = doc.context;
-  const pages = doc.getPages();
   const HL = PDFName.of("Highlight"), SUBTYPE = PDFName.of("Subtype");
 
   // Highlights already in the file were imported into the editor; drop them and write the current set.
   // Their popup windows (where some viewers keep comment text) go with them.
-  const POPUP = PDFName.of("Popup"), PARENT = PDFName.of("Parent");
+  const POPUP = PDFName.of("Popup"), PARENT = PDFName.of("Parent"), P = PDFName.of("P");
   const removed = new Set();
+  let pages = doc.getPages();
   for (const pg of pages) {
     const annots = pg.node.Annots();
     if (!annots) continue;
     for (let i = annots.size() - 1; i >= 0; i--) {
       const raw = annots.get(i);
-      const d = ctx.lookup(raw);
+      const d = doc.context.lookup(raw);
       if (d && typeof d.get === "function" && d.get(SUBTYPE) === HL) { removed.add(String(raw)); annots.remove(i); }
     }
   }
@@ -1183,13 +1454,31 @@ async function buildPdf() {
     const annots = pg.node.Annots();
     if (!annots) continue;
     for (let i = annots.size() - 1; i >= 0; i--) {
-      const d = ctx.lookup(annots.get(i));
+      const d = doc.context.lookup(annots.get(i));
       if (d && typeof d.get === "function" && d.get(SUBTYPE) === POPUP && removed.has(String(d.get(PARENT)))) annots.remove(i);
     }
   }
 
-  for (const h of S.highlights) {
-    const pg = pages[h.page];
+  let pageFor = (i) => pages[i];
+  if (onlyPages) {
+    // An annotation's /P points back at its page; copying it would drag a second copy of the page along.
+    for (const i of onlyPages) {
+      const annots = pages[i] && pages[i].node.Annots();
+      if (!annots) continue;
+      for (let k = 0; k < annots.size(); k++) { const d = doc.context.lookup(annots.get(k)); if (d && typeof d.delete === "function") d.delete(P); }
+    }
+    const out = await PDFDocument.create();
+    const copied = await out.copyPages(doc, onlyPages);
+    copied.forEach((pg) => out.addPage(pg));
+    const map = new Map(onlyPages.map((i, k) => [i, copied[k]]));
+    doc = out; pages = copied; pageFor = (i) => map.get(i);
+  }
+
+  const ctx = doc.context;
+  // One transparency state shared by every highlight's appearance.
+  const gs = ctx.register(ctx.obj({ Type: "ExtGState", BM: "Multiply", ca: ALPHA, CA: ALPHA }));
+  for (const h of highlights) {
+    const pg = pageFor(h.page);
     if (!pg || !h.rects.length) continue;
     const [r, g, b] = h.rgb.map(num);
     let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
@@ -1201,7 +1490,6 @@ async function buildPdf() {
     }
     const rect = [num(x1), num(y1), num(x2), num(y2)];
     // An explicit appearance stream, so every viewer draws the highlight the same way.
-    const gs = ctx.obj({ Type: "ExtGState", BM: "Multiply", ca: ALPHA, CA: ALPHA });
     const ap = ctx.stream(`q /GS0 gs ${r} ${g} ${b} rg ${ops.join(" ")} f Q`, {
       Type: "XObject", Subtype: "Form", FormType: 1, BBox: rect, Resources: { ExtGState: { GS0: gs } },
     });
@@ -1213,6 +1501,7 @@ async function buildPdf() {
   }
   return doc.save();
 }
+const baseName = (name) => String(name || "").replace(/\.pdf$/i, "").replace(/( \(highlighted( pages)?\))+$/i, "") || "document";
 
 async function download() {
   if (!S.pdf) return;
@@ -1221,13 +1510,24 @@ async function download() {
   let out;
   try { out = await buildPdf(); }
   catch (e) { toast(e.message || String(e), 7000); btn.disabled = false; return; }
-  const base = S.name.replace(/\.pdf$/i, "") || "document";
-  const filename = `${base} (highlighted).pdf`;
+  const filename = `${baseName(S.name)} (highlighted).pdf`;
   const blob = new Blob([out], { type: "application/pdf" });
   const n = S.highlights.length;
   const ok = await offerFile(filename, blob, `Downloaded “${filename}” with ${n} highlight${n === 1 ? "" : "s"}.`);
   if (ok) { S.dirty = false; clearStored(); }
   btn.disabled = false; updateUI();
+}
+
+/* A PDF of just the pages that have highlights, highlights included. */
+async function exportPages() {
+  if (!S.highlights.length || !S.loaded) return;
+  const pages = [...new Set(S.highlights.map((h) => h.page))].sort((a, b) => a - b);
+  let out;
+  try { out = await buildPdf(S.bytes, S.highlights, pages); }
+  catch (e) { toast(e.message || String(e), 7000); return; }
+  const filename = `${baseName(S.name)} (highlighted pages).pdf`;
+  await offerFile(filename, new Blob([out], { type: "application/pdf" }),
+    `Exported ${pages.length} highlighted page${pages.length === 1 ? "" : "s"} as “${filename}”.`);
 }
 
 async function copyAll() {
@@ -1248,8 +1548,8 @@ async function copyAll() {
    then looks for the same wording and offers to highlight it. Inside Claude the
    list lives in the viewer's private store, so it follows them across devices;
    elsewhere it lives in this browser. */
-const LIB = { passages: [], mode: "ask", store: null, ready: null };
-const LIB_MAX = 500;
+const LIB = { passages: [], templates: [], mode: "ask", store: null, ready: null };
+const LIB_MAX = 500, TEMPLATES_MAX = 50;
 const normText = (t) => String(t || "").replace(/\s+/g, " ").trim();
 
 function localLibStore() {
@@ -1285,6 +1585,7 @@ LIB.ready = (async () => {
       .filter((x) => x && typeof x.text === "string" && Array.isArray(x.rgb) && x.rgb.length === 3)
       .slice(0, LIB_MAX);
   }
+  if (data && Array.isArray(data.templates)) LIB.templates = data.templates.map(cleanTemplate).filter(Boolean).slice(0, TEMPLATES_MAX);
   if (data && ["ask", "always", "off"].includes(data.mode)) LIB.mode = data.mode;
   renderLibrary();
 })();
@@ -1295,7 +1596,7 @@ async function flushLibrary() {
   if (!LIB.store) return;
   if (libSaving) { libAgain = true; return; }
   libSaving = true;
-  const body = { passages: LIB.passages, mode: LIB.mode };
+  const body = { passages: LIB.passages, templates: LIB.templates, mode: LIB.mode };
   try {
     await LIB.store.save(body);
   } catch (e) {
@@ -1352,80 +1653,425 @@ function pageSearchText(p) {
 }
 const overlaps = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
 
-/* Finds every saved passage in the open PDF that isn't already highlighted. */
-async function findSavedPassages() {
-  const found = [];
-  if (!LIB.passages.length || !S.pdf) return found;
-  // Longest first, so a sentence wins over a phrase inside it.
-  const passages = LIB.passages.slice().sort((a, b) => b.text.length - a.text.length);
-  for (let i = 0; i < S.pages.length; i++) {
-    const p = S.pages[i];
-    try {
-      if (!p.pdfPage) p.pdfPage = await S.pdf.getPage(i + 1);
-      if (!p.textContent) p.textContent = await p.pdfPage.getTextContent();
-    } catch { continue; }
+/* Loads a page's text (and the page itself) if it isn't loaded yet. */
+async function ensureText(pdf, p, i) {
+  if (!p.pdfPage) p.pdfPage = await pdf.getPage(i + 1);
+  if (!p.textContent) p.textContent = await p.pdfPage.getTextContent();
+}
+/* The rectangles already highlighted, by page. */
+function takenByPage(highlights) {
+  const m = {};
+  for (const h of highlights) (m[h.page] || (m[h.page] = [])).push(...h.rects);
+  return m;
+}
+/* Every place each phrase ({text, rgb}) occurs that doesn't overlap `taken`, ignoring
+   case and line breaks. Longest first, so a sentence wins over a phrase inside it.
+   `matched` holds the phrases (lowercased) found at all, even where already highlighted. */
+async function findPhrases(pdf, pages, phrases, taken = {}) {
+  const found = [], matched = new Set();
+  const list = phrases.map((x) => ({ ...x, q: normText(x.text).toLowerCase() }))
+    .filter((x) => x.q).sort((a, b) => b.q.length - a.q.length);
+  if (!list.length) return { found, matched };
+  for (let i = 0; i < pages.length; i++) {
+    const p = pages[i];
+    try { await ensureText(pdf, p, i); } catch { continue; }
     const t = pageSearchText(p);
-    const taken = S.highlights.filter((h) => h.page === i).flatMap((h) => h.rects);
-    for (const passage of passages) {
-      const q = passage.text.toLowerCase();
-      let pos = t.lower.indexOf(q);
+    const mine = (taken[i] || []).slice();
+    for (const ph of list) {
+      let pos = t.lower.indexOf(ph.q);
       while (pos !== -1) {
-        const start = t.nmap[pos], end = t.nmap[pos + q.length - 1] + 1;
+        matched.add(ph.q);
+        const start = t.nmap[pos], end = t.nmap[pos + ph.q.length - 1] + 1;
         const rects = matchRects(p.textContent.items, t.map, start, end, p.textContent.styles);
-        if (rects.length && !rects.some((r) => taken.some((x) => overlaps(r, x)))) {
-          found.push({ page: i, rects, rgb: passage.rgb.slice(), text: passage.text });
-          taken.push(...rects);
+        if (rects.length && !rects.some((r) => mine.some((x) => overlaps(r, x)))) {
+          found.push({ page: i, rects, rgb: ph.rgb.slice(), text: normText(ph.text) });
+          mine.push(...rects);
         }
-        pos = t.lower.indexOf(q, pos + q.length);
+        pos = t.lower.indexOf(ph.q, pos + ph.q.length);
       }
     }
+    if (i % 25 === 24) await yieldToUI(); // long documents: let the page breathe
   }
-  return found;
+  return { found, matched };
 }
+
+/* ---------- form templates ---------- */
+/* A template remembers where a form was highlighted (area boxes included) so the
+   next copy of the same form can be highlighted the same way. Stored in the same
+   shape as the library file the Mac app reads. */
+function cleanTemplate(t) {
+  if (!t || typeof t.name !== "string" || !t.name.trim() || !Number.isInteger(t.pageCount) || t.pageCount < 1) return null;
+  if (!Array.isArray(t.size) || t.size.length !== 2 || !t.size.every(Number.isFinite) || !Array.isArray(t.highlights)) return null;
+  const highlights = t.highlights.map((h) => h && Number.isInteger(h.page) && Array.isArray(h.rects) ? {
+    page: h.page,
+    rects: h.rects.filter((r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).map((r) => r.map(num)),
+    color: COLORS[h.color] ? h.color : "yellow",
+    text: typeof h.text === "string" ? h.text : "",
+  } : null).filter((h) => h && h.rects.length);
+  return { name: t.name.trim().slice(0, 120), pageCount: t.pageCount, size: t.size.map(num),
+           signature: typeof t.signature === "string" ? t.signature : "", highlights };
+}
+/* What identifies a form: page count, first page size, and the start of its text
+   (lowercased, spaces removed, so the Mac app and the site agree). */
+async function docSignature(pdf, pages) {
+  const p = pages[0];
+  await ensureText(pdf, p, 0);
+  const [x1, y1, x2, y2] = p.pdfPage.view;
+  const signature = p.textContent.items.map((it) => it.str || "").join("").replace(/\s+/g, "").toLowerCase().slice(0, 80);
+  return { pageCount: pdf.numPages, size: [num(x2 - x1), num(y2 - y1)], signature };
+}
+function templateMatches(t, sig) {
+  return t.pageCount === sig.pageCount && Math.abs(t.size[0] - sig.size[0]) <= 1 && Math.abs(t.size[1] - sig.size[1]) <= 1 &&
+    (!t.signature || !sig.signature || t.signature === sig.signature);
+}
+const inset = (r) => [r[0] + 1, r[1] + 1, r[2] - 1, r[3] - 1];
+/* The template's highlights that don't overlap `taken` (which is updated). */
+function templateItems(t, taken, pageCount) {
+  const out = [];
+  for (const h of t.highlights) {
+    if (h.page >= pageCount) continue;
+    const mine = taken[h.page] || (taken[h.page] = []);
+    if (h.rects.some((r) => mine.some((x) => overlaps(inset(r), x)))) continue;
+    out.push({ page: h.page, rects: h.rects.map((r) => r.slice()), rgb: COLORS[h.color].rgb.slice(), text: h.text });
+    mine.push(...h.rects);
+  }
+  return out;
+}
+/* Everything the library would highlight in a document: the first matching form
+   template, then saved passages. */
+async function findLibraryMatches(pdf, pages, existing) {
+  const taken = takenByPage(existing);
+  let found = [], template = null;
+  if (LIB.templates.length) {
+    const sig = await docSignature(pdf, pages);
+    template = LIB.templates.find((t) => templateMatches(t, sig)) || null;
+    if (template) { found = templateItems(template, taken, pdf.numPages); if (!found.length) template = null; }
+  }
+  if (LIB.passages.length) found = found.concat((await findPhrases(pdf, pages, LIB.passages, taken)).found);
+  return { found, template };
+}
+async function saveTemplate() {
+  if (!S.highlights.length || !S.loaded) return;
+  const name = await askName("Save as Form Template",
+    "The next time you open a copy of this form, Highlight offers to highlight the same places, including boxes over blank lines and fields.",
+    baseName(S.name), "Save");
+  if (!name) return;
+  const sig = await docSignature(S.pdf, S.pages);
+  const t = cleanTemplate({ name, ...sig, highlights: sortedHighlights().map((h) => ({ page: h.page, rects: h.rects, color: nearestKey(h.rgb), text: h.text || "" })) });
+  LIB.templates = [t, ...LIB.templates.filter((x) => x.name.toLowerCase() !== t.name.toLowerCase())].slice(0, TEMPLATES_MAX);
+  saveLibrary(); renderLibrary();
+  toast(`Saved “${t.name}”. Opening another copy of this form offers the same highlights.`, 4500);
+}
+function applyTemplate(t) {
+  if (!S.pdf || !S.loaded) return;
+  const items = templateItems(t, takenByPage(S.highlights), S.pages.length);
+  if (!items.length) { toast(`Every place in “${t.name}” is already highlighted here.`); return; }
+  applySavedMatches(items);
+  toast(`Highlighted ${items.length} place${items.length === 1 ? "" : "s"} from “${t.name}”. Press ⌘Z to undo.`);
+}
+
 function applySavedMatches(found) {
   if (!found.length) return;
   commit({ type: "add", items: found.map((m) => ({ id: nextId++, ...m })) });
 }
 async function highlightSavedPassagesNow() {
-  if (!S.pdf) return;
-  const found = await findSavedPassages();
-  if (!found.length) { toast("None of your saved passages appear in this PDF."); return; }
+  if (!S.pdf || !S.loaded) return;
+  const { found } = await findLibraryMatches(S.pdf, S.pages, S.highlights);
+  if (!found.length) { toast("Nothing from your saved passages or form templates is left to highlight here."); return; }
+  const banner = $("libBanner"); if (banner) banner.remove();
   applySavedMatches(found);
-  toast(`Highlighted ${found.length} saved passage${found.length === 1 ? "" : "s"}. Press ⌘Z to undo.`);
+  toast(`Highlighted ${found.length} place${found.length === 1 ? "" : "s"}. Press ⌘Z to undo.`);
 }
 /* Runs once a newly opened PDF has finished loading. */
 async function autoMatchSavedPassages(token) {
   if (S.sample) return;
   await LIB.ready;
-  if (token !== openToken || LIB.mode === "off" || !LIB.passages.length) return;
-  const found = await findSavedPassages();
+  if (token !== openToken || LIB.mode === "off" || (!LIB.passages.length && !LIB.templates.length)) return;
+  const { found, template } = await findLibraryMatches(S.pdf, S.pages, S.highlights);
   if (token !== openToken || !found.length) return;
   const n = found.length;
   if (LIB.mode === "always") {
     applySavedMatches(found);
-    toast(`Highlighted ${n} passage${n === 1 ? "" : "s"} you’ve highlighted before. Press ⌘Z to undo.`, 5000);
+    toast(template ? `Highlighted ${n} place${n === 1 ? "" : "s"} like your “${template.name}” form. Press ⌘Z to undo.`
+                   : `Highlighted ${n} passage${n === 1 ? "" : "s"} you’ve highlighted before. Press ⌘Z to undo.`, 5000);
     return;
   }
   let d;
   const yes = bannerButton("Highlight Them", true, () => { applySavedMatches(found); d.remove(); });
   const no = bannerButton("Not Now", false, () => d.remove());
-  d = makeBanner({ id: "libBanner", icon: "mark", title: `Found ${n} passage${n === 1 ? "" : "s"} you’ve highlighted before.`,
-    text: "They match passages from your other PDFs.", actions: [yes, no] });
+  d = template
+    ? makeBanner({ id: "libBanner", icon: "doc", title: `This looks like your “${template.name}” form.`,
+        text: `Highlight the same ${n} place${n === 1 ? "" : "s"} as last time.`, actions: [yes, no] })
+    : makeBanner({ id: "libBanner", icon: "mark", title: `Found ${n} passage${n === 1 ? "" : "s"} you’ve highlighted before.`,
+        text: "They match passages from your other PDFs.", actions: [yes, no] });
   els.pages.prepend(d);
+}
+
+/* ---------- phrase lists ---------- */
+function parsePhrases(text) {
+  const seen = new Set(), out = [];
+  for (const line of String(text).split(/\r?\n/)) {
+    const t = normText(line.replace(/^\s*(?:[-•*–]|\d+[.)])\s+/, ""));
+    if (t.length < 2 || seen.has(t.toLowerCase())) continue;
+    seen.add(t.toLowerCase()); out.push(t);
+  }
+  return out;
+}
+const PHRASES_KEY = "highlight:phrases:v1";
+function updatePhraseButton() {
+  const n = parsePhrases($("phraseText").value).length;
+  $("phraseGo").textContent = n ? `Highlight ${n} Phrase${n === 1 ? "" : "s"}` : "Highlight";
+  $("phraseGo").disabled = !n;
+}
+function openPhrases() {
+  if (!S.pdf) return;
+  closeMenu();
+  try { $("phraseText").value = localStorage.getItem(PHRASES_KEY) || ""; } catch {}
+  $("phraseColor").textContent = COLORS[S.color].name.toLowerCase();
+  $("phraseResult").textContent = "";
+  updatePhraseButton();
+  $("phraseDlg").showModal();
+  $("phraseText").focus();
+}
+async function runPhrases() {
+  const phrases = parsePhrases($("phraseText").value);
+  if (!phrases.length || !S.pdf) return;
+  $("phraseGo").disabled = true;
+  try { localStorage.setItem(PHRASES_KEY, $("phraseText").value); } catch {}
+  const rgb = COLORS[S.color].rgb.slice();
+  const { found, matched } = await findPhrases(S.pdf, S.pages, phrases.map((text) => ({ text, rgb })), takenByPage(S.highlights));
+  applySavedMatches(found);
+  if ($("phraseSave").checked) for (const t of phrases) rememberPassage(t, rgb);
+  const missing = phrases.filter((t) => !matched.has(t.toLowerCase()));
+  const done = `Highlighted ${found.length} place${found.length === 1 ? "" : "s"}.`;
+  updatePhraseButton();
+  if (!missing.length) { $("phraseDlg").close(); toast(`${done} Press ⌘Z to undo.`); return; }
+  $("phraseResult").textContent = `${done} Not in this PDF: ${missing.slice(0, 6).join(", ")}${missing.length > 6 ? "…" : ""}`;
+}
+
+/* ---------- name prompt ---------- */
+function askName(title, text, value, okLabel) {
+  const dlg = $("nameDlg"), input = $("nameInput");
+  $("nameTitle").textContent = title; $("nameText").textContent = text; $("nameOk").textContent = okLabel;
+  input.value = value;
+  return new Promise((resolve) => {
+    const done = (v) => { if (dlg.open) dlg.close(); $("nameOk").onclick = $("nameCancel").onclick = input.onkeydown = null; resolve(v); };
+    $("nameOk").onclick = () => done(input.value.trim() || null);
+    $("nameCancel").onclick = () => done(null);
+    input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); done(input.value.trim() || null); } };
+    dlg.oncancel = () => done(null);
+    dlg.showModal();
+    input.focus(); input.select();
+  });
+}
+
+/* ---------- library file (shared with the Mac app) ---------- */
+function libraryFile() {
+  return {
+    app: "Highlight", version: 1,
+    passages: LIB.passages.map((p) => ({ text: p.text, color: nearestKey(p.rgb) })),
+    templates: LIB.templates.map((t) => ({ name: t.name, pageCount: t.pageCount, size: t.size, signature: t.signature, highlights: t.highlights })),
+  };
+}
+async function exportLibrary() {
+  closeMenu();
+  if (!LIB.passages.length && !LIB.templates.length) { toast("Nothing saved yet to export."); return; }
+  await offerFile("Highlight library.json", new Blob([JSON.stringify(libraryFile(), null, 2)], { type: "application/json" }),
+    "Exported your saved passages and form templates. Import the file in the Mac app or on another device.");
+}
+async function importLibrary(file) {
+  if (!file) return;
+  await LIB.ready;
+  let data = null;
+  try { data = JSON.parse(await file.text()); } catch {}
+  if (!data || data.app !== "Highlight" || !Array.isArray(data.passages)) { toast(`“${file.name}” isn’t a library exported from Highlight.`, 5000); return; }
+  let np = 0, nt = 0;
+  for (const x of data.passages) {
+    if (!x || typeof x.text !== "string") continue;
+    const t = normText(x.text);
+    if (t.length < 3) continue;
+    const rgb = (COLORS[x.color] || COLORS.yellow).rgb.slice();
+    const existing = LIB.passages.find((y) => y.text.toLowerCase() === t.toLowerCase());
+    if (existing) existing.rgb = rgb;
+    else { LIB.passages.push({ text: t, rgb, addedAt: Date.now() }); np++; }
+  }
+  for (const raw of Array.isArray(data.templates) ? data.templates : []) {
+    const t = cleanTemplate(raw);
+    if (!t) continue;
+    LIB.templates = [t, ...LIB.templates.filter((x) => x.name.toLowerCase() !== t.name.toLowerCase())];
+    nt++;
+  }
+  LIB.passages.length = Math.min(LIB.passages.length, LIB_MAX);
+  LIB.templates.length = Math.min(LIB.templates.length, TEMPLATES_MAX);
+  saveLibrary(); renderLibrary(); showTab("lib");
+  toast(`Added ${np} passage${np === 1 ? "" : "s"} and ${nt} form template${nt === 1 ? "" : "s"}.`);
+}
+
+/* ---------- batch ---------- */
+/* Highlights many PDFs with the saved passages and form templates. One file comes
+   back as a PDF; several come back in a zip. Nothing is uploaded. */
+function startBatch() {
+  closeMenu();
+  if (!LIB.passages.length && !LIB.templates.length) {
+    toast("A batch highlights your saved passages and form templates. Highlight something first, or import a library.", 6000);
+    return;
+  }
+  $("batchInput").click();
+}
+async function runBatch(files) {
+  files = files.filter((f) => /\.pdf$/i.test(f.name) || f.type === "application/pdf");
+  if (!files.length) return;
+  await LIB.ready;
+  const dlg = $("batchDlg");
+  let stop = false;
+  $("batchStop").onclick = () => { stop = true; $("batchText").textContent = "Stopping…"; };
+  dlg.oncancel = (e) => { e.preventDefault(); stop = true; };
+  dlg.showModal();
+  const outs = [], skipped = [], failed = [];
+  // Start loading the writers while the first file is read.
+  const writers = Promise.all([pdfLib(), files.length > 1 ? jsZip() : null]).catch((e) => e);
+  for (let k = 0; k < files.length && !stop; k++) {
+    $("batchText").textContent = `${k + 1} of ${files.length}: ${files[k].name}`;
+    $("batchBar").value = k / files.length;
+    let pdf = null;
+    try {
+      const bytes = new Uint8Array(await files[k].arrayBuffer());
+      pdf = await pdfjsLib.getDocument({ data: bytes.slice(), isEvalSupported: false }).promise;
+      const pages = Array.from({ length: pdf.numPages }, () => ({}));
+      const existing = [];
+      for (let i = 0; i < pages.length; i++) {
+        pages[i].pdfPage = await pdf.getPage(i + 1);
+        for (const h of await readHighlights(pages[i].pdfPage)) existing.push({ ...h, page: i });
+      }
+      const { found } = await findLibraryMatches(pdf, pages, existing);
+      if (!found.length) { skipped.push(files[k].name); continue; }
+      outs.push({ name: `${baseName(files[k].name)} (highlighted).pdf`, bytes: await buildPdf(bytes, existing.concat(found)), n: found.length });
+    } catch (e) {
+      console.error(e);
+      failed.push(files[k].name);
+    } finally {
+      if (pdf) pdf.destroy();
+    }
+  }
+  $("batchBar").value = 1;
+  const loaded = await writers;
+  dlg.close();
+  if (loaded instanceof Error) { toast(loaded.message, 6000); return; }
+  const parts = [];
+  if (skipped.length) parts.push(`${skipped.length} had nothing to highlight`);
+  if (failed.length) parts.push(`${failed.length} couldn’t be opened or saved`);
+  const extra = parts.length ? ` (${parts.join(", ")})` : "";
+  if (!outs.length) { toast(stop ? "Batch stopped." : `Nothing to highlight${extra}.`, 5000); return; }
+  const total = outs.reduce((sum, o) => sum + o.n, 0);
+  const msg = `Highlighted ${outs.length} PDF${outs.length === 1 ? "" : "s"} with ${total} highlight${total === 1 ? "" : "s"}${extra}.`;
+  if (outs.length === 1) { await offerFile(outs[0].name, new Blob([outs[0].bytes], { type: "application/pdf" }), msg); return; }
+  const JSZip = await jsZip();
+  const zip = new JSZip(), used = new Set();
+  for (const o of outs) {
+    let name = o.name, n = 2;
+    while (used.has(name.toLowerCase())) name = o.name.replace(/\.pdf$/i, ` ${n++}.pdf`);
+    used.add(name.toLowerCase());
+    zip.file(name, o.bytes);
+  }
+  await offerFile("Highlighted PDFs.zip", await zip.generateAsync({ type: "blob" }), msg);
+}
+
+/* ---------- menus ---------- */
+/* A small popup menu under (or above) a button: [{label, sub, run, disabled, danger} | "-"]. */
+function openMenu(anchorBtn, entries) {
+  const menu = $("menu");
+  if (!menu.hidden && menu.dataset.for === anchorBtn.id) { closeMenu(); return; }
+  menu.textContent = "";
+  for (const e of entries) {
+    if (e === "-") { menu.append(document.createElement("hr")); continue; }
+    const b = document.createElement("button");
+    b.type = "button"; b.setAttribute("role", "menuitem"); b.disabled = !!e.disabled;
+    if (e.danger) b.className = "danger";
+    b.append(e.label);
+    if (e.sub) { const sub = document.createElement("span"); sub.className = "sub"; sub.textContent = e.sub; b.append(sub); }
+    b.addEventListener("click", () => { closeMenu(); e.run(); });
+    menu.append(b);
+  }
+  menu.dataset.for = anchorBtn.id;
+  menu.hidden = false;
+  anchorBtn.setAttribute("aria-expanded", "true");
+  const a = anchorBtn.getBoundingClientRect(), w = menu.offsetWidth, h = menu.offsetHeight;
+  const below = a.bottom + 6 + h <= window.innerHeight - 8;
+  menu.style.top = `${below ? a.bottom + 6 : Math.max(8, a.top - h - 6)}px`;
+  menu.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, a.right - w))}px`;
+  const first = menu.querySelector("button:not(:disabled)"); if (first) first.focus({ preventScroll: true });
+}
+function closeMenu() {
+  const menu = $("menu");
+  if (menu.hidden) return;
+  const btn = $(menu.dataset.for || "");
+  if (btn) btn.setAttribute("aria-expanded", "false");
+  menu.hidden = true; menu.dataset.for = "";
+}
+function openExportMenu() {
+  openMenu($("exportBtn"), [
+    { label: "Highlighted Pages as PDF", sub: "Only the pages with highlights", run: exportPages, disabled: !S.loaded },
+    { label: "Highlighted Text as Markdown", sub: "A list of every highlight, by page", run: exportMarkdown },
+  ]);
+}
+function openLibMenu() {
+  const hasDoc = !!S.pdf && S.loaded;
+  openMenu($("libMore"), [
+    { label: "Highlight Phrases…", sub: "Paste a list; every match is highlighted", run: openPhrases, disabled: !hasDoc },
+    { label: "Save Highlights as Form Template…", sub: "Reuse them on the next copy of this form", run: saveTemplate, disabled: !hasDoc || !S.highlights.length },
+    { label: "Highlight a Batch of PDFs…", sub: "Apply your saved passages and templates", run: startBatch },
+    "-",
+    { label: "Export Library", sub: "For the Mac app or another device", run: exportLibrary, disabled: !LIB.passages.length && !LIB.templates.length },
+    { label: "Import Library…", run: () => $("libInput").click() },
+    "-",
+    { label: "Clear Saved Passages…", run: clearPassages, disabled: !LIB.passages.length, danger: true },
+  ]);
+}
+async function clearPassages() {
+  const n = LIB.passages.length;
+  const ok = await confirmDialog("Clear saved passages?",
+    `All ${n} saved passage${n === 1 ? "" : "s"} will be forgotten. Form templates and highlights already in your PDFs aren’t affected.`, "Clear all");
+  if (!ok) return;
+  LIB.passages = []; saveLibrary(); renderLibrary();
 }
 
 function renderLibrary() {
   const list = $("libList");
   list.textContent = "";
-  $("libCount").textContent = LIB.passages.length ? `· ${LIB.passages.length}` : "";
+  const total = LIB.passages.length + LIB.templates.length;
+  $("libCount").textContent = total ? `· ${total}` : "";
   for (const r of document.querySelectorAll('input[name="libMode"]')) r.checked = r.value === LIB.mode;
-  $("libClear").disabled = !LIB.passages.length;
-  $("libApply").disabled = !LIB.passages.length || !S.pdf || S.sample;
-  if (!LIB.passages.length) {
+  $("libApply").disabled = !total || !S.pdf || S.sample;
+  if (!total) {
     const li = document.createElement("li"); li.className = "empty";
-    li.textContent = "Nothing saved yet. Passages you highlight in your own PDFs show up here.";
+    li.textContent = "Nothing saved yet. Passages you highlight in your own PDFs show up here, and so do form templates you save from the ⋯ menu.";
     list.append(li);
     return;
+  }
+  const section = (label) => { const li = document.createElement("li"); li.className = "sec"; li.textContent = label; list.append(li); };
+  if (LIB.templates.length) {
+    section("Form templates");
+    for (const t of LIB.templates) {
+      const li = document.createElement("li"); li.className = "item lib";
+      const ico = document.createElement("span"); ico.className = "tpl-ico"; ico.innerHTML = ICONS.doc;
+      const body = document.createElement("div");
+      const name = document.createElement("span"); name.className = "t"; name.textContent = t.name;
+      const n = t.highlights.length;
+      const meta = document.createElement("span"); meta.className = "p"; meta.textContent = `${n} highlight${n === 1 ? "" : "s"} · ${t.pageCount} page${t.pageCount === 1 ? "" : "s"}`;
+      body.append(name, meta);
+      const acts = document.createElement("div"); acts.className = "acts";
+      const use = document.createElement("button"); use.type = "button"; use.className = "btn"; use.textContent = "Apply";
+      use.disabled = !S.pdf || S.sample || !S.loaded;
+      use.title = "Highlight the same places in this PDF";
+      use.addEventListener("click", () => applyTemplate(t));
+      const x = document.createElement("button"); x.className = "x"; x.type = "button"; x.textContent = "×";
+      x.setAttribute("aria-label", `Delete template ${t.name}`); x.title = "Delete this template";
+      x.addEventListener("click", () => { LIB.templates = LIB.templates.filter((y) => y !== t); saveLibrary(); renderLibrary(); });
+      acts.append(use, x);
+      li.append(ico, body, acts);
+      list.append(li);
+    }
+    if (LIB.passages.length) section("Passages");
   }
   for (const passage of LIB.passages) {
     const li = document.createElement("li"); li.className = "item lib";
@@ -1478,30 +2124,24 @@ function clearStored() {
   clearTimeout(persistTimer);
   try { if (S.key) localStorage.removeItem(S.key); } catch {}
 }
+/* Brings back highlights that were auto-saved but never downloaded, without
+   asking: they are the user's own work on this exact file. */
 function offerRestore() {
   if (!S.key) return;
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(S.key) || "null"); } catch {}
   if (!saved || !Array.isArray(saved.highlights)) return;
   const n = saved.highlights.length;
-  const when = new Date(saved.savedAt || Date.now()).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
-  let d;
-  const restore = bannerButton("Restore", true, () => {
-    const touched = new Set(S.highlights.map((h) => h.page));
-    S.highlights = saved.highlights.map((h) => ({ ...h, id: nextId++ }));
-    S.highlights.forEach((h) => touched.add(h.page));
-    S.undo = []; S.redo = []; S.dirty = true;
-    redrawPages([...touched]); renderSidebar(); updateUI();
-    d.remove(); toast(`Restored ${n} highlight${n === 1 ? "" : "s"}`);
-  });
-  const discard = bannerButton("Discard", false, () => { clearStored(); d.remove(); });
-  d = makeBanner({ id: "restoreBanner", icon: "restore", title: "Unsaved highlights found.",
-    text: `${n} highlight${n === 1 ? "" : "s"} from ${when} weren’t downloaded.`, actions: [restore, discard] });
-  els.pages.prepend(d);
+  const touched = new Set(S.highlights.map((h) => h.page));
+  S.highlights = saved.highlights.map((h) => ({ ...h, id: nextId++ }));
+  S.highlights.forEach((h) => touched.add(h.page));
+  S.undo = []; S.redo = []; S.dirty = true;
+  redrawPages([...touched]); renderSidebar(); updateUI();
+  if (n) toast(`Picked up where you left off: ${n} highlight${n === 1 ? "" : "s"} not yet downloaded`, 3500);
 }
 
 /* ---------- find ---------- */
-const F = { query: "", matches: [], index: -1, token: 0 };
+const F = { query: "", matches: [], byPage: new Map(), index: -1, token: 0 };
 function openFind() {
   if (!S.pdf) return;
   $("findbar").hidden = false;
@@ -1510,13 +2150,13 @@ function openFind() {
 }
 function closeFind() {
   $("findbar").hidden = true;
-  F.query = ""; F.matches = []; F.index = -1; F.token++;
+  F.query = ""; F.matches = []; F.byPage = new Map(); F.index = -1; F.token++;
   $("findStatus").textContent = "";
   for (const p of S.pages) p.find && (p.find.textContent = "");
 }
 async function runFind(query) {
   const token = ++F.token;
-  F.query = query; F.matches = []; F.index = -1;
+  F.query = query; F.matches = []; F.byPage = new Map(); F.index = -1;
   const q = query.trim().toLowerCase();
   for (const p of S.pages) p.find.textContent = "";
   if (q.length < 2) { $("findStatus").textContent = q ? "Keep typing" : ""; updateFindButtons(); return; }
@@ -1541,7 +2181,12 @@ async function runFind(query) {
     let pos = lower.indexOf(q);
     while (pos !== -1) {
       const rects = matchRects(items, map, pos, pos + q.length, p.textContent.styles);
-      if (rects.length) F.matches.push({ page: i, rects, text: str.substr(pos, q.length) });
+      if (rects.length) {
+        const m = { page: i, rects, text: str.substr(pos, q.length), mi: F.matches.length };
+        F.matches.push(m);
+        if (!F.byPage.has(i)) F.byPage.set(i, []);
+        F.byPage.get(i).push(m);
+      }
       pos = lower.indexOf(q, pos + q.length);
     }
     drawFind(p);
@@ -1578,26 +2223,31 @@ function matchRects(items, map, s, e, styles) {
 function drawFind(p) {
   const index = S.pages.indexOf(p);
   p.find.textContent = "";
-  if (!p.viewport || !F.matches.length) return;
-  F.matches.forEach((m, mi) => {
-    if (m.page !== index) return;
+  const onPage = F.byPage.get(index);
+  if (!p.viewport || !onPage) return;
+  const frag = document.createDocumentFragment();
+  onPage.forEach((m) => {
+    const mi = m.mi;
     for (const r of m.rects) {
       const v = p.viewport.convertToViewportRectangle(r);
       const div = document.createElement("div");
       div.className = "find-hit" + (mi === F.index ? " current" : "");
+      div.dataset.mi = mi;
       Object.assign(div.style, {
         left: `${Math.min(v[0], v[2]) - 1}px`, top: `${Math.min(v[1], v[3]) - 1}px`,
         width: `${Math.abs(v[2] - v[0]) + 2}px`, height: `${Math.abs(v[3] - v[1]) + 2}px`,
       });
-      p.find.appendChild(div);
+      frag.appendChild(div);
     }
   });
+  p.find.appendChild(frag);
 }
 function showMatch() {
   const n = F.matches.length;
   $("findStatus").textContent = n ? `${F.index + 1} of ${n}` : "No matches";
   updateFindButtons();
-  for (const p of S.pages) drawFind(p);
+  for (const d of els.pages.querySelectorAll(".find-hit.current")) d.classList.remove("current");
+  for (const d of els.pages.querySelectorAll(`.find-hit[data-mi="${F.index}"]`)) d.classList.add("current");
   const m = F.matches[F.index];
   if (!m) return;
   const p = S.pages[m.page];
@@ -1643,6 +2293,20 @@ async function exportMarkdown() {
    inside Claude, otherwise as a normal browser download. Returns true when saved. */
 async function offerFile(filename, blob, doneMsg) {
   const dl = await downloadsP;
+  // On iPhone and iPad the share sheet is the natural way to save: Files, Mail, AirDrop.
+  if (!dl && isTouch() && navigator.canShare) {
+    try {
+      const file = new File([blob], filename, { type: blob.type || "application/octet-stream" });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        toast(doneMsg.replace(/^Downloaded/, "Shared").replace(/^Exported/, "Shared"));
+        return true;
+      }
+    } catch (e) {
+      if (e && e.name === "AbortError") return false;
+      // Fall through to a normal download.
+    }
+  }
   try {
     if (dl) {
       await dl.save({ filename, data: blob });
@@ -1661,6 +2325,128 @@ async function offerFile(filename, blob, doneMsg) {
     else toast("Downloading isn’t available in this view. Open the page in your browser to save files.", 6000);
     return false;
   }
+}
+
+/* ---------- recent files ---------- */
+/* The last few PDFs opened are kept in this browser (IndexedDB) so the site can
+   pick up where you left off: the newest reopens on launch, and the file-name
+   menu lists the rest. Nothing leaves the device. */
+const RECENT_MAX = 6, RECENT_MAX_BYTES = 60 * 1024 * 1024;
+function recentDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("highlight", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("recent", { keyPath: "key" });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function recentTx(mode, fn) {
+  const db = await recentDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("recent", mode);
+    const out = fn(tx.objectStore("recent"));
+    tx.oncomplete = () => { db.close(); resolve(out && out.result); };
+    tx.onerror = tx.onabort = () => { db.close(); reject(tx.error); };
+  });
+}
+async function recentList() {
+  try { return ((await recentTx("readonly", (st) => st.getAll())) || []).sort((a, b) => b.openedAt - a.openedAt); }
+  catch { return []; }
+}
+async function recentRemember(bytes, name, key) {
+  if (!key || bytes.length > RECENT_MAX_BYTES) return;
+  try {
+    await recentTx("readwrite", (st) => st.put({ key, name, size: bytes.length, openedAt: Date.now(), bytes }));
+    const all = await recentList();
+    if (all.length > RECENT_MAX) await recentTx("readwrite", (st) => all.slice(RECENT_MAX).forEach((r) => st.delete(r.key)));
+  } catch { /* storage unavailable or full: recents are a convenience */ }
+}
+async function recentClear() { try { await recentTx("readwrite", (st) => st.clear()); } catch {} }
+
+function relTime(t) {
+  const m = Math.round((Date.now() - t) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} hr ago`;
+  return new Date(t).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+async function toggleRecents() {
+  const menu = $("recents");
+  if (!menu.hidden) { closeRecents(); return; }
+  const list = await recentList();
+  menu.textContent = "";
+  const hd = document.createElement("div"); hd.className = "hd"; hd.textContent = list.length ? "Recent" : "No recent files yet";
+  menu.append(hd);
+  for (const r of list) {
+    const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "menuitem");
+    const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = r.name;
+    const meta = document.createElement("span"); meta.className = "meta"; meta.textContent = `${relTime(r.openedAt)} · ${(r.size / 1048576).toFixed(r.size < 1048576 ? 2 : 1)} MB`;
+    b.append(nm, meta);
+    if (r.key === S.key) { const c = document.createElement("span"); c.className = "cur"; c.textContent = "Open"; b.append(c); }
+    b.addEventListener("click", async () => {
+      closeRecents();
+      if (r.key === S.key) return;
+      if (!(await confirmLeave())) return;
+      await openBytes(r.bytes, r.name, false);
+    });
+    menu.append(b);
+  }
+  menu.append(document.createElement("hr"));
+  const open = document.createElement("label"); open.htmlFor = "fileInput";
+  const ob = document.createElement("button"); ob.type = "button"; ob.className = "act"; ob.setAttribute("role", "menuitem"); ob.textContent = "Open Another PDF…";
+  ob.addEventListener("click", () => { closeRecents(); $("fileInput").click(); });
+  menu.append(ob);
+  if (list.length) {
+    const clr = document.createElement("button"); clr.type = "button"; clr.className = "act"; clr.setAttribute("role", "menuitem"); clr.textContent = "Clear Recent Files";
+    clr.addEventListener("click", async () => { closeRecents(); await recentClear(); toast("Cleared recent files"); });
+    menu.append(clr);
+  }
+  menu.hidden = false;
+  const a = $("fileName").getBoundingClientRect();
+  const w = menu.offsetWidth;
+  menu.style.top = `${a.bottom + 6}px`;
+  menu.style.left = `${Math.max(12, Math.min(window.innerWidth - w - 12, a.left + a.width / 2 - w / 2))}px`;
+  $("fileName").setAttribute("aria-expanded", "true");
+  const first = menu.querySelector("button"); if (first) first.focus({ preventScroll: true });
+}
+function closeRecents() { $("recents").hidden = true; $("fileName").setAttribute("aria-expanded", "false"); }
+/* Before replacing the open file: unsaved highlights are auto-saved per file, so
+   only ask when that auto-save isn't available. */
+async function confirmLeave() {
+  if (!S.dirty || S.sample || S.key) return true;
+  return confirmDialog("Discard unsaved highlights?",
+    `Your highlights in “${S.name}” haven’t been downloaded yet. Opening another file will lose them.`, "Open anyway");
+}
+
+/* ---------- page indicator ---------- */
+let pageIndTimer;
+function currentPageIndex() {
+  const vr = els.viewer.getBoundingClientRect(), mid = vr.top + vr.height / 2;
+  let cur = 0;
+  for (let i = 0; i < S.pages.length; i++) { const r = S.pages[i].el.getBoundingClientRect(); if (r.top <= mid) cur = i; else break; }
+  return cur;
+}
+function showPageIndicator() {
+  if (!S.pdf || S.pages.length < 2) return;
+  const cur = currentPageIndex();
+  const ind = $("pageInd");
+  ind.textContent = `${cur + 1} of ${S.pages.length}`;
+  ind.classList.add("show");
+  clearTimeout(pageIndTimer);
+  pageIndTimer = setTimeout(() => ind.classList.remove("show"), 1100);
+}
+
+/* ---------- color palette (phones) ---------- */
+function showPalette() {
+  const pop = els.pop;
+  pop.textContent = ""; pop.dataset.kind = "palette";
+  for (const k of COLOR_KEYS) {
+    const b = swatchButton(k, (key) => { setColor(key); hidePop(); }, k === S.color);
+    pop.append(b);
+  }
+  const a = $("colorBtn").getBoundingClientRect();
+  placePop(a);
 }
 
 /* ---------- banners ---------- */
@@ -1703,47 +2489,14 @@ function sampleBanner() {
   const open = document.createElement("label"); open.className = "btn primary"; open.htmlFor = "fileInput"; open.textContent = "Open a PDF";
   return makeBanner({ icon: "doc", title: "This is a sample.", text: "Select a sentence to try it. Your files never leave this device.", actions: [open], dismiss: true });
 }
-async function makeSample() {
-  const { PDFDocument, StandardFonts, rgb } = PDFLib;
-  const doc = await PDFDocument.create();
-  doc.setTitle("How to read a paper in three passes");
-  const serif = await doc.embedFont(StandardFonts.TimesRoman);
-  const bold = await doc.embedFont(StandardFonts.TimesRomanBold);
-  const sans = await doc.embedFont(StandardFonts.Helvetica);
-  const page = doc.addPage([612, 792]);
-  const left = 78, width = 456, lines = [];
-  let y = 712;
-  const put = (text, font, size, color = rgb(0.1, 0.12, 0.16)) => { page.drawText(text, { x: left, y, size, font, color }); lines.push({ text, x: left, y, size, font }); };
-  const para = (text, size = 12, leading = 17.5) => {
-    let line = "";
-    for (const word of text.split(" ")) {
-      const test = line ? `${line} ${word}` : word;
-      if (serif.widthOfTextAtSize(test, size) > width && line) { put(line, serif, size); y -= leading; line = word; }
-      else line = test;
-    }
-    if (line) { put(line, serif, size); y -= leading; }
-    y -= 9;
-  };
-  page.drawText("READING NOTES", { x: left, y: y + 26, size: 9, font: sans, color: rgb(0.35, 0.4, 0.48) });
-  put("How to Read a Paper in Three Passes", bold, 22); y -= 34;
-  para("Researchers spend a large share of their time reading papers, yet few are taught how to do it. A useful habit is to read each paper in up to three passes, where every pass has its own goal and builds on the one before.");
-  put("The first pass", bold, 14); y -= 22;
-  para("The first pass is a quick scan of five to ten minutes. Read the title, abstract and introduction, the section headings, and the conclusions, and glance at the references. Afterward you should be able to say what kind of paper it is, what it claims, and whether it is worth reading further.");
-  put("The second pass", bold, 14); y -= 22;
-  para("In the second pass, read with more care but skip the proofs. Look closely at the figures and diagrams, and mark the references you have not read. This takes up to an hour, and you should then be able to summarize the main thrust of the paper to someone else.");
-  put("The third pass", bold, 14); y -= 22;
-  para("The third pass is about virtually re-implementing the paper: making the same assumptions as the authors and recreating the work. Comparing your version with theirs exposes both the paper's innovations and its hidden failings. Expect it to take several hours.");
-  para("Highlighting works best when it is selective. Mark the claim, the evidence, and the open question, and leave the rest of the page clean.");
-  const bytes = await doc.save();
-
-  const box = (l) => [l.x, l.y - l.size * 0.24, l.x + l.font.widthOfTextAtSize(l.text, l.size), l.y + l.size * 0.80].map(num);
-  const find = (start) => lines.find((l) => l.text.startsWith(start));
-  const seeds = [];
-  const a = find("The first pass is a quick scan");
-  if (a) seeds.push({ rects: [box(a)], key: "yellow" });
-  const b1 = lines.find((l) => /virtually re-implementing/.test(l.text));
-  if (b1) seeds.push({ rects: [box(b1)], key: "green" });
-  return { bytes, seeds };
+/* The sample is a small PDF built once with pdf-lib and embedded, so the first
+   visit doesn't need to download a PDF writer just to show it. */
+const SAMPLE_PDF = "JVBERi0xLjcKJYGBgYEKCjggMCBvYmoKPDwKL0ZpbHRlciAvRmxhdGVEZWNvZGUKL0xlbmd0aCAxMjEzCj4+CnN0cmVhbQp4nK1X247bRgx991foucBu50rOAEWAWLbQh7608A8EzbZIkG2Qtuj395CckeS1hUabYrHWbTQkD3kOqS+H4+XgHmMe3GOS/zL8+fvh+x+fPv3z9PeHX989sKslFcelDnW4/HYIabj8dPCDw58fuAwcy3B5PvyQQ8rJp5RqOicODr9TTinn+Ga4fDxcvjucL4efD1/MIDZ49EF+SA1ePjw//fVw/Pzp/UPlFKiETGUI4b5JvCkmU6GJYYoTTcHlQJk8peDI4wq/7ChzwHWlM+4kKixrcnsaOeL5Dvd++fz87o+H4JwrLtdCg7/vH3GHRPYXr2A3UhFvOMLfKJ7RuftKo65g8YxlnVzhnCYijQ5vUpVIcF7ppOtatBIbCQZzvLAw4rriXPYnHFns2J7YwXOGraJPrxAk+5UEAK/k9yJTOTs4hO02kSH3mBUbNmQIvozqh6eglsV+7B7xklM5Apt1pD2z2MvNb6yyzKssKyZsOVBsM5OiVZd15oce4YkegY5YAF4T7IunXvK2Fxl4GHKU1G4ik6LiQgGIVFREs6/xaQXYlR4lPoJvEsl5J71Kys4X5yVJ6b4rnlqScjdMUn6AKC1g7YUAG9XCvsDABgS5pq+w2wtEiMNewYp0VOJESU6njb5LreStMLI+PUnRICFJy+K8Fo4OtNAM/yPOLeXqA+BGCWqJ+kZe2UnuT0hXlme4Iykb96KTS0jwOsZtdJiNON1Hoc9i0alIzIJgBd/9nAsoaglFGpV++ub1ShT6qOdR13teo2JlpwSyFYZf8qBxUjKxykxS+Zm4y9kkJN9PGo/Gg66CHG9ikmurGDJSi4iMq5yjIpTgrMSW+I6KT5rF9UpMZvkZr96x+1GRgfy+wNZEJZm0XO0iz0BSeXYr2CJ99kzf20tjLqVU7+HWFo2hN1dksoLRAvgGGleuET0+1M2ceG/Nua6l675xxXlhHyvrinJ0ajId52YYWBsadkIOm+Db3k4ZiHy2ehz16thyNqntUergup5FIcAUrWdTlNdIe2BXfK01b0p7qrFXqWTfw6YoyYs6QswS6fE/+DYzS6tT9Q3PJo2rI9mGnbmReiBm764aZdNKZSfqb13R/wN3iZ00a6K0iQrTSs/Ulw0Ow4NTQ6fy2/bEMnhSRp572xdV44Xbc30sHJ91YZIxam6oUh/xFc2UY0YDSmWzl4IqL3oaW2bCt5AQTTQ5nxlU20I38FfYXXopMJ8av6znSj/DwGO8UQaeVPtkWM2K3ZmX4fMG6fi2Zed4s0a69Kl1l2jZZdf7mHnzClkiKjFGUG0TEe+u+qeMwXo+2VA+V3/QvqpcuhOhKjpYKjqjVcQ2Wvd1tfHJtfEy9v68qNsy0KvdzIWdqZReSyZW63brUYYewblN4sUa+gy+EIOtGBCEiAm10OeE9HGnTcUoJEhZH6hISTjOg4dAY0HlNi7VJrvTIkfWEgykNlk3KZIddo8KoH4MocSwGTVR/2as8vWj/upX0Jy6ltqWhCYl1t41znVj15bSBzCVYYn6RsKXoUFbXb8rcVfDTwete6PaZN+Iu780EAnIEOrm0BRT6fmX8Vnj7GPrKtejEoDWcsszKrcCa1+vGm/W1nLt+b+qroUTCmVuZHN0cmVhbQplbmRvYmoKCjkgMCBvYmoKPDwKL0ZpbHRlciAvRmxhdGVEZWNvZGUKL1R5cGUgL09ialN0bQovTiA3Ci9GaXJzdCAzOAovTGVuZ3RoIDU0Nwo+PgpzdHJlYW0KeJytVEtrGzEQvu+v0LE9GL2lUTGG2LFbKKHBCbS09LDxCrPFkYpXLum/70ibh52o0JZ6kTXPb6TRzHDCiCBKEUksEEUUM0QT5RjB3aKQGK3JdNrQ65/fPaGX7dYPDX3fdwP5glpG1uRrQxfxEBLhzWzWPNku2tTu4rYZnQjPxg8Wl/vYHTZ+T6ar5WrFmALGjMNlcWV6ccpbNWvoRezO2+TJq/M33KGC41d+n1/jEfa+TfHvAItPH8PvUa/7tPMnmLhbtBIsY4x8ofHPaFzobNQoy3TR3dNl16Nt0efzLI+w4AhHP/OV4yr+cnaa6VUMqaFXh5tU2CzkDZ23g88aFPS3fpis420bGroMm9j1YUvoxz6chaF/EPwL5jzuuv8G+c7vfvjUb9o/RsyVletr73P5lQKjaz/Ew36DFZftCnImHsEnljnAp7TgsMiLy9NdJs4qYUBoA9gHR8qSvEl+EWDagcFeeaF1VjNlnGC2prXaCi2lee5bwoLSjANWnq2FBYMhLYfSoi+0GoQyRkhZ1XK8qxaKW10JawHAcc6MrIV11kmlnHA1XGEZcOecrqYC2wxvKoxRtahSa+MU1O9qQTGuLefVFBsDUkrlZPVMGs8kmFLVRAirpRAgRfV1sPEQXLiHNGGd0U8fbr75TamfzC7v0turlGfFKMiyC9/17Tze4TRk+BkuiHUiz8SzEGLKU7LMx5CwRDMH9zMTnX8BCR9tsAplbmRzdHJlYW0KZW5kb2JqCgoxMCAwIG9iago8PAovU2l6ZSAxMQovUm9vdCAyIDAgUgovSW5mbyAzIDAgUgovRmlsdGVyIC9GbGF0ZURlY29kZQovVHlwZSAvWFJlZgovTGVuZ3RoIDQzCi9XIFsgMSAyIDIgXQovSW5kZXggWyAwIDExIF0KPj4Kc3RyZWFtCnicFcQxFgAQDETBvyE8nc713TTsFANUBQucXLjmuks3xAbl+c0LD3anAzcKZW5kc3RyZWFtCmVuZG9iagoKc3RhcnR4cmVmCjE5NTIKJSVFT0Y=";
+const SAMPLE_SEEDS = [{"rects": [[78, 591.62, 518.988, 604.1]], "key": "yellow"}, {"rects": [[78, 424.62, 523.632, 437.1]], "key": "green"}];
+function makeSample() {
+  const bin = atob(SAMPLE_PDF), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return { bytes, seeds: SAMPLE_SEEDS };
 }
 
 /* ---------- events ---------- */
@@ -1751,6 +2504,21 @@ function bind() {
   bindPinch();
   bindArea();
   $("areaBtn").addEventListener("click", () => setAreaMode(!S.area));
+  $("fileName").addEventListener("click", (e) => { e.stopPropagation(); toggleRecents(); });
+  $("colorBtn").addEventListener("click", (e) => { e.stopPropagation(); els.pop.dataset.kind === "palette" && !els.pop.hidden ? hidePop() : showPalette(); });
+  document.addEventListener("pointerdown", (e) => {
+    if (!$("recents").hidden && !$("recents").contains(e.target) && e.target !== $("fileName")) closeRecents();
+    if (els.pop.dataset.kind === "palette" && !els.pop.contains(e.target) && !$("colorBtn").contains(e.target)) hidePop();
+    const menu = $("menu");
+    if (!menu.hidden && !menu.contains(e.target) && !(menu.dataset.for && $(menu.dataset.for).contains(e.target))) closeMenu();
+  });
+  $("recents").addEventListener("keydown", (e) => {
+    const items = [...$("recents").querySelectorAll("button")];
+    const i = items.indexOf(document.activeElement);
+    if (e.key === "Escape") { closeRecents(); $("fileName").focus(); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  });
   for (const k of COLOR_KEYS) {
     const b = swatchButton(k, setColor, k === S.color);
     b.dataset.key = k;
@@ -1769,20 +2537,29 @@ function bind() {
   $("undoBtn").addEventListener("click", undo);
   $("saveBtn").addEventListener("click", download);
   $("copyBtn").addEventListener("click", copyAll);
-  $("mdBtn").addEventListener("click", exportMarkdown);
+  $("exportBtn").addEventListener("click", (e) => { e.stopPropagation(); openExportMenu(); });
+  $("libMore").addEventListener("click", (e) => { e.stopPropagation(); openLibMenu(); });
+  $("prevHl").addEventListener("click", () => stepHighlight(-1));
+  $("nextHl").addEventListener("click", () => stepHighlight(1));
+  $("menu").addEventListener("keydown", (e) => {
+    const items = [...$("menu").querySelectorAll("button:not(:disabled)")];
+    const i = items.indexOf(document.activeElement);
+    if (e.key === "Escape") { const btn = $($("menu").dataset.for || ""); closeMenu(); if (btn) btn.focus(); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  });
+  $("libInput").addEventListener("change", (e) => { importLibrary(e.target.files[0]); e.target.value = ""; e.target.blur(); });
+  $("batchInput").addEventListener("change", (e) => { const files = Array.from(e.target.files); e.target.value = ""; e.target.blur(); runBatch(files); });
+  $("phraseText").addEventListener("input", () => { updatePhraseButton(); $("phraseResult").textContent = ""; });
+  $("phraseText").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runPhrases(); } });
+  $("phraseGo").addEventListener("click", runPhrases);
+  $("phraseCancel").addEventListener("click", () => $("phraseDlg").close());
   $("tabDoc").addEventListener("click", () => showTab("doc"));
   $("tabLib").addEventListener("click", () => showTab("lib"));
   for (const r of document.querySelectorAll('input[name="libMode"]')) {
     r.addEventListener("change", () => { if (r.checked) { LIB.mode = r.value; saveLibrary(); } });
   }
   $("libApply").addEventListener("click", highlightSavedPassagesNow);
-  $("libClear").addEventListener("click", async () => {
-    const n = LIB.passages.length;
-    const ok = await confirmDialog("Clear saved passages?",
-      `All ${n} saved passage${n === 1 ? "" : "s"} will be forgotten. Highlights already in your PDFs aren’t affected.`, "Clear all");
-    if (!ok) return;
-    LIB.passages = []; saveLibrary(); renderLibrary();
-  });
   $("findBtn").addEventListener("click", () => ($("findbar").hidden ? openFind() : closeFind()));
   $("findClose").addEventListener("click", closeFind);
   $("findPrev").addEventListener("click", () => stepFind(-1));
@@ -1801,7 +2578,7 @@ function bind() {
   $("sideClose").addEventListener("click", () => setSide(false));
   $("scrim").addEventListener("click", () => setSide(false));
 
-  els.viewer.addEventListener("scroll", () => { renderVisible(); if (!els.pop.hidden) hidePop(); }, { passive: true });
+  els.viewer.addEventListener("scroll", () => { renderVisible(); showPageIndicator(); if (!els.pop.hidden) hidePop(); }, { passive: true });
   let resizeT, wasNarrow = isNarrow();
   window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => {
     const narrow = isNarrow();
@@ -1850,8 +2627,10 @@ function bind() {
     if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); download(); return; }
     if (mod && e.key.toLowerCase() === "f") { e.preventDefault(); openFind(); return; }
     if (mod && e.key.toLowerCase() === "g") { e.preventDefault(); stepFind(e.shiftKey ? -1 : 1); return; }
+    if (e.altKey && !mod && (e.key === "ArrowDown" || e.key === "ArrowUp")) { e.preventDefault(); stepHighlight(e.key === "ArrowDown" ? 1 : -1); return; }
     if (mod || e.altKey) return;
-    if (e.key === "Escape") { hidePop(); if (S.area) setAreaMode(false); return; }
+    if (e.key === "]" || e.key === "[") { e.preventDefault(); stepHighlight(e.key === "]" ? 1 : -1); return; }
+    if (e.key === "Escape") { hidePop(); closeMenu(); if (S.area) setAreaMode(false); return; }
     if (e.key.toLowerCase() === "b" && S.pdf) { e.preventDefault(); setAreaMode(!S.area); return; }
     if (e.key.toLowerCase() === "h" && S.pdf) { e.preventDefault(); highlightSelection(); return; }
     const n = Number(e.key);
@@ -1883,9 +2662,16 @@ function bind() {
 async function start() {
   bind();
   setSide(!isNarrow());
+  setColor(S.color);
   updateUI(); renderSidebar();
+  // Pick up where you left off: reopen the most recent file (its unsaved
+  // highlights come back via the auto-save).
+  const recent = (await recentList())[0];
+  if (recent) {
+    try { await openBytes(recent.bytes, recent.name, false); if (S.pdf) return; } catch (e) { console.error(e); }
+  }
   try {
-    const { bytes, seeds } = await makeSample();
+    const { bytes, seeds } = makeSample();
     await openBytes(bytes, "How to read a paper.pdf", true);
     for (const s of seeds) S.highlights.push({ id: nextId++, page: 0, rects: s.rects, rgb: COLORS[s.key].rgb.slice(), text: "" });
     const p0 = S.pages[0];

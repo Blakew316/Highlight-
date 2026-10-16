@@ -36,4 +36,14 @@ enum HighlightColor: String, CaseIterable, Identifiable {
             return true
         }
     }
+
+    /// The palette color closest to `color` (for highlights made by other apps).
+    static func nearest(to color: NSColor) -> HighlightColor {
+        guard let c = color.usingColorSpace(.sRGB) else { return .yellow }
+        func distance(_ option: HighlightColor) -> CGFloat {
+            guard let o = option.nsColor.usingColorSpace(.sRGB) else { return .infinity }
+            return pow(c.redComponent - o.redComponent, 2) + pow(c.greenComponent - o.greenComponent, 2) + pow(c.blueComponent - o.blueComponent, 2)
+        }
+        return allCases.min { distance($0) < distance($1) } ?? .yellow
+    }
 }
