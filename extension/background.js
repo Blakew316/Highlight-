@@ -25,7 +25,10 @@ function openInApp(url, tab) {
 }
 self.openInApp = openInApp; // for tests
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
+  // A new install opens Highlight right away, so it's obvious it worked and the
+  // page can explain where the button is.
+  if (details.reason === "install") chrome.tabs.create({ url: `${APP}?welcome=1` });
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: "open-link", title: "Open PDF in Highlight", contexts: ["link"], targetUrlPatterns: PDF_PATTERNS,

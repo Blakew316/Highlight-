@@ -79,6 +79,13 @@ The same app as the website, built into Chrome, so you can highlight the PDF you
 2. Open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked**, and choose the unzipped folder.
 3. Pin it: click the puzzle-piece icon in the toolbar, then the pin next to Highlight.
 
+When it's installed, a Highlight tab opens by itself. If it doesn't:
+
+- **No Highlight tab and no card in `chrome://extensions`:** it wasn't loaded. Make sure **Developer mode** is on, and that the folder you pick in **Load unpacked** is the unzipped one with `manifest.json` directly inside it (not the `.zip` file, and not a folder above it).
+- **A card with a red Errors button:** click it and send me what it says.
+- **The card is there but there's no button in the toolbar:** Chrome hides new extensions behind the puzzle-piece icon. Click it, then the pin next to Highlight.
+- **"Developer mode" can't be turned on:** a work or school computer may block it; installing through the Chrome Web Store is the only option there.
+
 To update, download the new zip, replace the folder's contents, and click the reload arrow on Highlight's card in `chrome://extensions`. (It isn't on the Chrome Web Store, which is why it installs this way.)
 
 ### Use it

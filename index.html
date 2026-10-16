@@ -2798,7 +2798,19 @@ async function openSample() {
     toast("Open a PDF to start highlighting.");
   }
 }
-start();
+/* Chrome extension, first run: say it worked and how to keep the button in sight. */
+async function welcomeBanner() {
+  if (!IS_EXTENSION || !new URLSearchParams(location.search).has("welcome")) return;
+  history.replaceState(null, "", location.pathname);
+  let pinned = false;
+  try { pinned = (await chrome.action.getUserSettings()).isOnToolbar; } catch {}
+  els.pages.prepend(makeBanner({ id: "welcomeBanner", icon: "mark", title: "Highlight is installed.",
+    text: pinned
+      ? "On any PDF in Chrome, click the Highlight button in the toolbar (or press Alt+Shift+H) to highlight it here."
+      : "To keep it in your toolbar, click the puzzle-piece icon at the top right of Chrome, then the pin next to Highlight. On any PDF, click that button (or press Alt+Shift+H) to highlight it here.",
+    dismiss: true }));
+}
+start().then(welcomeBanner);
 })();
 </script>
 
