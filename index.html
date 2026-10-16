@@ -566,6 +566,10 @@ dialog.form progress { width: 100%; height: 6px; accent-color: var(--accent); }
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7.5 17h5M10 13.5V17"/></svg>
         <span class="txt">Mac app</span>
       </a>
+      <a class="btn hide-narrow" id="chromeLink" href="https://cerulean-pegasus-4af782.netlify.app/downloads/Highlight-chrome.zip" title="Download Highlight for Chrome (unzip, then Load unpacked in chrome://extensions)">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/><path d="M10 7h7M7.4 11.5L3.9 5.4M12.6 11.5l-3.5 6"/></svg>
+        <span class="txt">Chrome</span>
+      </a>
       <button class="btn primary" id="saveBtn" aria-label="Download PDF" title="Download PDF (⌘S)">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v9.5M6 9l4 4 4-4M4 16.5h12"/></svg>
         <span class="txt">Download</span>
@@ -2761,6 +2765,7 @@ function accessBanner(src) {
 
 async function start() {
   bind();
+  if (IS_EXTENSION) $("chromeLink").remove(); // already installed
   setSide(!isNarrow());
   setColor(S.color);
   updateUI(); renderSidebar();

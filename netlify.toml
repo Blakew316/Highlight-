@@ -1,0 +1,12 @@
+# The site is the repository root (index.html). The build also packages the
+# Chrome extension so it can be downloaded from the site:
+#   /downloads/Highlight-chrome.zip
+[build]
+  publish = "."
+  command = "./scripts/build-extension.sh && mkdir -p downloads && cp build/Highlight-chrome.zip downloads/"
+
+[[headers]]
+  for = "/downloads/*"
+  [headers.values]
+    Content-Disposition = "attachment"
+    Cache-Control = "no-cache"

@@ -75,7 +75,7 @@ The same app as the website, built into Chrome, so you can highlight the PDF you
 
 ### Install
 
-1. [**Download Highlight for Chrome**](https://github.com/Blakew316/Highlight-/releases/download/chrome-extension/Highlight-chrome.zip) and unzip it. Keep the folder somewhere permanent, because Chrome loads it from there.
+1. [**Download Highlight for Chrome**](https://cerulean-pegasus-4af782.netlify.app/downloads/Highlight-chrome.zip) (also the **Chrome** button on the website) and unzip it: on Windows, right-click it in your Downloads folder → **Extract All**. Keep the folder somewhere permanent, because Chrome loads it from there.
 2. Open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked**, and choose the unzipped folder.
 3. Pin it: click the puzzle-piece icon in the toolbar, then the pin next to Highlight.
 
