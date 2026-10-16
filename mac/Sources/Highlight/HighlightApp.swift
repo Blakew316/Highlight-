@@ -89,6 +89,9 @@ struct HighlightCommands: Commands {
                 .disabled(model.highlights.isEmpty)
         }
 
+        // The highlights sidebar is always shown, so drop View > Hide Sidebar.
+        CommandGroup(replacing: .sidebar) {}
+
         CommandGroup(after: .toolbar) {
             Button("Zoom In") { model.zoomIn() }
                 .keyboardShortcut("+")

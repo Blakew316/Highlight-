@@ -4,10 +4,13 @@ import SwiftUI
 /// Main window: highlights sidebar plus the PDF (or an empty state).
 struct ContentView: View {
     @ObservedObject var model: DocumentModel
+    /// The highlights sidebar is pinned open: any attempt to collapse it is undone.
+    @State private var columns: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columns) {
             HighlightsSidebar(model: model)
+                .modifier(HideSidebarToggle())
                 .navigationSplitViewColumnWidth(min: 200, ideal: 260, max: 400)
         } detail: {
             if model.document != nil {
@@ -15,6 +18,9 @@ struct ContentView: View {
             } else {
                 EmptyStateView(model: model)
             }
+        }
+        .onChange(of: columns) { visibility in
+            if visibility != .all { columns = .all }
         }
         .navigationTitle(model.title)
         .navigationSubtitle(model.isDirty ? "Edited" : "")
@@ -41,6 +47,18 @@ struct ContentView: View {
             guard let url = urls.first(where: { $0.pathExtension.lowercased() == "pdf" }) else { return false }
             model.open(url)
             return true
+        }
+    }
+}
+
+/// Removes the toolbar button that would hide the sidebar (macOS 14+; on 13
+/// the button stays but `ContentView` reopens the sidebar immediately).
+private struct HideSidebarToggle: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 14.0, *) {
+            content.toolbar(removing: .sidebarToggle)
+        } else {
+            content
         }
     }
 }

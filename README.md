@@ -41,7 +41,19 @@ Libraries: [PDF.js](https://mozilla.github.io/pdf.js/) 3.11.174 renders pages an
 
 ## Mac app
 
-A native macOS app (SwiftUI + PDFKit, macOS 13 or newer). It needs Xcode or the Xcode Command Line Tools.
+A native macOS app (SwiftUI + PDFKit, macOS 13 or newer, Apple Silicon and Intel). The highlights list stays pinned on the left.
+
+### Download
+
+[**Download Highlight for Mac**](https://github.com/Blakew316/Highlight-/releases/latest/download/Highlight-mac.zip). It's built automatically each time the app changes on `main`.
+
+1. Unzip it and drag **Highlight.app** into Applications.
+2. Open it. macOS will say it can't verify the app, because it isn't notarized with an Apple Developer ID.
+3. Open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to Highlight. You only need to do this once.
+
+### Build it yourself
+
+This needs Xcode or the Xcode Command Line Tools.
 
 ```bash
 cd mac

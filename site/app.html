@@ -78,7 +78,7 @@ button, input { font: inherit; color: inherit; }
 .btn {
   display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
   border: 1px solid var(--line); border-radius: 7px; background: var(--surface); cursor: pointer;
-  font-weight: 500; white-space: nowrap;
+  font-weight: 500; white-space: nowrap; text-decoration: none; box-sizing: border-box;
 }
 .btn:hover { background: var(--surface-2); }
 .btn:disabled { opacity: .45; cursor: default; }
@@ -251,6 +251,10 @@ dialog .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wra
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 3L2 6l3 3"/><path d="M2 6h7.5a4 4 0 0 1 0 8H7"/></svg>
       </button>
       <button class="btn" id="sideBtn" aria-expanded="true" aria-controls="side">Highlights <span id="sideCount" class="zoom" style="min-width:0">0</span></button>
+      <a class="btn" id="macLink" href="https://github.com/Blakew316/Highlight-/releases/latest/download/Highlight-mac.zip" target="_blank" rel="noopener" title="Download the native Highlight app for macOS 13 or newer">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="3" width="12" height="8" rx="1"/><path d="M6 14h4M8 11v3"/></svg>
+        Mac app
+      </a>
       <button class="btn primary" id="saveBtn">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 2v8M4.5 6.5L8 10l3.5-3.5M2.5 13.5h11"/></svg>
         Download PDF
