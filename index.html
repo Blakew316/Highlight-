@@ -1,0 +1,1030 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>body{margin:0}img{max-width:100%}</style>
+</head>
+<body>
+<title>Highlight</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a reading desk. Toolbar across the top, highlight index on the left, white pages lying on a cool grey desk. */
+:root {
+  --desk: #e7eaf0;
+  --surface: #fbfcfd;
+  --surface-2: #f1f3f7;
+  --ink: #1a2130;
+  --muted: #5a6476;
+  --line: #d4d9e2;
+  --accent: #24407a;
+  --accent-ink: #ffffff;
+  --danger: #a3312b;
+  --shadow: 0 1px 2px rgba(20, 30, 50, .10), 0 6px 24px rgba(20, 30, 50, .10);
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --hl-yellow: #ffe033;
+  --hl-green: #7fe066;
+  --hl-blue: #73b8ff;
+  --hl-pink: #ff80bf;
+  --hl-orange: #ffa840;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --desk: #11141a; --surface: #191d25; --surface-2: #20252f; --ink: #e5e8ee; --muted: #9aa3b3;
+    --line: #2d333e; --accent: #93b2f2; --accent-ink: #0d1422; --danger: #f08a82;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px rgba(0, 0, 0, .45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --desk: #11141a; --surface: #191d25; --surface-2: #20252f; --ink: #e5e8ee; --muted: #9aa3b3;
+  --line: #2d333e; --accent: #93b2f2; --accent-ink: #0d1422; --danger: #f08a82;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px rgba(0, 0, 0, .45);
+  color-scheme: dark;
+}
+
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  background: var(--desk); color: var(--ink);
+  font-family: var(--font-body); font-size: 14px; line-height: 1.45;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- toolbar ---------- */
+.bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.brand {
+  font-family: var(--font-display); font-weight: 800; font-size: 20px; letter-spacing: -.01em;
+  display: flex; align-items: baseline; gap: 10px; min-width: 0;
+}
+.brand .swipe {
+  background: linear-gradient(transparent 42%, var(--hl-yellow) 42%, var(--hl-yellow) 88%, transparent 88%);
+  color: #1a2130; padding: 0 2px; margin: 0 -2px;
+}
+.brand .file {
+  font-family: var(--font-body); font-weight: 500; font-size: 13px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32ch;
+}
+.brand .dirty { color: var(--muted); font-size: 12px; font-family: var(--font-body); font-weight: 400; }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-left: auto; }
+.group { display: flex; align-items: center; gap: 6px; }
+.sep { width: 1px; height: 22px; background: var(--line); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 7px; background: var(--surface); cursor: pointer;
+  font-weight: 500; white-space: nowrap; text-decoration: none; box-sizing: border-box;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.icon { width: 32px; padding: 0; justify-content: center; }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.btn svg { width: 16px; height: 16px; flex: none; }
+.zoom { font-family: var(--font-mono); font-size: 12px; min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+
+.swatches { display: flex; gap: 6px; }
+.swatch {
+  width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .18); cursor: pointer; padding: 0;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .08);
+}
+.swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+
+/* ---------- main ---------- */
+.main { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); }
+.main.no-side { grid-template-columns: minmax(0, 1fr); }
+.main.no-side aside { display: none; }
+
+aside {
+  background: var(--surface); border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; min-height: 0;
+}
+.side-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 14px 16px 10px; border-bottom: 1px solid var(--line);
+}
+.side-head h2 {
+  margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+}
+.side-head .count { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.list { list-style: none; margin: 0; padding: 6px 0; overflow: auto; flex: 1; min-height: 0; }
+.item {
+  display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; gap: 10px; align-items: start;
+  padding: 9px 12px 9px 16px; cursor: pointer;
+}
+.item:hover, .item:focus-visible { background: var(--surface-2); }
+.item .bar-c { align-self: stretch; border-radius: 2px; }
+.item .t { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; min-width: 0; }
+.item .p { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+.item .x {
+  border: 0; background: none; color: var(--muted); cursor: pointer; width: 24px; height: 24px; border-radius: 5px;
+  opacity: 0; font-size: 16px; line-height: 1;
+}
+.item:hover .x, .item:focus-within .x { opacity: 1; }
+.item .x:hover { background: var(--line); color: var(--danger); }
+.empty { padding: 16px; color: var(--muted); }
+.empty kbd, .hint kbd {
+  font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px;
+  border-radius: 4px; padding: 0 4px; background: var(--surface-2);
+}
+.side-foot { padding: 10px 16px 14px; border-top: 1px solid var(--line); display: flex; gap: 8px; }
+
+#viewer { overflow: auto; position: relative; min-width: 0; }
+.pages {
+  width: max-content; min-width: 100%; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; gap: 22px;
+  padding-block: 24px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.banner {
+  max-width: 640px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px;
+}
+.banner b { font-weight: 600; }
+.banner .muted { color: var(--muted); }
+.page { position: relative; background: #fff; box-shadow: var(--shadow); flex: none; }
+.page canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.page .num {
+  position: absolute; left: 0; bottom: -18px; font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+}
+.hl-layer { position: absolute; inset: 0; z-index: 1; mix-blend-mode: multiply; pointer-events: none; }
+.hl-rect { position: absolute; border-radius: 1.5px; }
+.hl-rect.flash { animation: flash 1.1s ease-out; }
+@keyframes flash { 0%, 40% { outline: 3px solid var(--accent); outline-offset: 2px; } 100% { outline: 3px solid transparent; outline-offset: 2px; } }
+
+/* PDF.js text layer (adapted from pdf_viewer.css 3.11) */
+.textLayer {
+  position: absolute; text-align: initial; inset: 0; overflow: hidden; line-height: 1; z-index: 2;
+  -webkit-text-size-adjust: none; text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0;
+}
+.textLayer span, .textLayer br {
+  color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%;
+}
+.textLayer span.markedContent { top: 0; height: 0; }
+.textLayer ::selection { background: rgba(36, 64, 122, .28); }
+
+/* ---------- popover, toast, dialog ---------- */
+#pop {
+  position: fixed; z-index: 30; display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px;
+  box-shadow: var(--shadow);
+}
+#pop .lbl { font-size: 12px; color: var(--muted); padding-right: 2px; }
+#pop .btn { height: 28px; padding: 0 10px; }
+#pop .btn.danger { color: var(--danger); }
+
+#toast {
+  position: fixed; z-index: 40; left: 50%; transform: translateX(-50%);
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--surface); padding: 9px 14px; border-radius: 8px; max-width: min(520px, calc(100vw - 32px));
+  box-shadow: var(--shadow);
+}
+dialog {
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink);
+  padding: 20px; max-width: min(420px, calc(100vw - 32px)); box-shadow: var(--shadow);
+}
+dialog::backdrop { background: rgba(10, 14, 22, .4); }
+dialog h3 { margin: 0 0 6px; font-family: var(--font-display); font-weight: 600; font-size: 18px; text-wrap: balance; }
+dialog p { margin: 0 0 16px; color: var(--muted); }
+dialog .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+
+.drop-hint {
+  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; pointer-events: none;
+  background: rgba(36, 64, 122, .14); border: 3px dashed var(--accent);
+  font-family: var(--font-display); font-size: 26px; font-weight: 600; color: var(--accent);
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 760px) {
+  .main, .main.no-side { grid-template-columns: minmax(0, 1fr); }
+  aside {
+    position: fixed; z-index: 20; top: 0; bottom: 0; right: 0; width: min(320px, 86vw);
+    border-right: 0; border-left: 1px solid var(--line); box-shadow: var(--shadow);
+    padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .main:not(.side-open) aside { display: none; }
+  .brand .file { max-width: 18ch; }
+  .tools { margin-left: 0; }
+  .hide-narrow { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .hl-rect.flash { animation: none; outline: 3px solid var(--accent); } }
+</style>
+
+<header class="bar">
+  <div class="brand">
+    <span>High<span class="swipe">light</span></span>
+    <span class="file" id="fileName"></span>
+    <span class="dirty" id="dirty" hidden>Edited</span>
+  </div>
+  <div class="tools">
+    <div class="group">
+      <label class="btn" for="fileInput">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4.5h4l1.5 1.5H14v6.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/></svg>
+        Open PDF
+      </label>
+      <input type="file" id="fileInput" accept="application/pdf,.pdf" class="sr">
+    </div>
+    <div class="group" role="radiogroup" aria-label="Highlight color">
+      <div class="swatches" id="swatches"></div>
+    </div>
+    <button class="btn" id="modeBtn" aria-pressed="false" title="When on, text is highlighted as soon as you finish selecting it">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9.5 2.5l4 4-6 6H3.5v-4z"/><path d="M2 14.5h7"/></svg>
+      Auto-highlight
+    </button>
+    <div class="sep hide-narrow"></div>
+    <div class="group">
+      <button class="btn icon" id="zoomOut" aria-label="Zoom out">−</button>
+      <button class="btn zoom" id="zoomFit" title="Fit width">100%</button>
+      <button class="btn icon" id="zoomIn" aria-label="Zoom in">+</button>
+    </div>
+    <div class="sep hide-narrow"></div>
+    <div class="group">
+      <button class="btn icon" id="undoBtn" aria-label="Undo" title="Undo (⌘Z)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 3L2 6l3 3"/><path d="M2 6h7.5a4 4 0 0 1 0 8H7"/></svg>
+      </button>
+      <button class="btn" id="sideBtn" aria-expanded="true" aria-controls="side">Highlights <span id="sideCount" class="zoom" style="min-width:0">0</span></button>
+      <a class="btn" id="macLink" href="https://github.com/Blakew316/Highlight-/releases/latest/download/Highlight-mac.zip" target="_blank" rel="noopener" title="Download the native Highlight app for macOS 13 or newer">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="3" width="12" height="8" rx="1"/><path d="M6 14h4M8 11v3"/></svg>
+        Mac app
+      </a>
+      <button class="btn primary" id="saveBtn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8 2v8M4.5 6.5L8 10l3.5-3.5M2.5 13.5h11"/></svg>
+        Download PDF
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="main" id="main">
+  <aside id="side" aria-label="Highlights">
+    <div class="side-head">
+      <h2>Highlights <span class="count" id="listCount"></span></h2>
+      <button class="btn icon" id="sideClose" aria-label="Close highlights">×</button>
+    </div>
+    <ul class="list" id="list"></ul>
+    <div class="side-foot">
+      <button class="btn" id="copyBtn">Copy all text</button>
+    </div>
+  </aside>
+  <div id="viewer" tabindex="-1">
+    <div class="pages" id="pages"></div>
+  </div>
+</div>
+
+<div id="pop" hidden role="toolbar" aria-label="Highlight actions"></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<div class="drop-hint" id="dropHint" hidden>Drop your PDF to open it</div>
+<dialog id="confirmDlg">
+  <h3 id="confirmTitle">Discard unsaved highlights?</h3>
+  <p id="confirmText"></p>
+  <div class="row">
+    <button class="btn" value="cancel" id="confirmCancel">Keep editing</button>
+    <button class="btn primary" value="ok" id="confirmOk">Open new file</button>
+  </div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+(() => {
+"use strict";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+/* Highlight colors, as 0–1 RGB. These are what get written into the PDF. */
+const COLORS = {
+  yellow: { name: "Yellow", rgb: [1, 0.878, 0.2] },
+  green:  { name: "Green",  rgb: [0.5, 0.878, 0.4] },
+  blue:   { name: "Blue",   rgb: [0.45, 0.722, 1] },
+  pink:   { name: "Pink",   rgb: [1, 0.5, 0.75] },
+  orange: { name: "Orange", rgb: [1, 0.66, 0.25] },
+};
+const COLOR_KEYS = Object.keys(COLORS);
+const ALPHA = 0.5;
+
+const S = {
+  pdf: null, bytes: null, name: "", sample: false,
+  scale: 1, fit: true,
+  pages: [],          // {pdfPage, el, hl, text, canvas, viewport, renderedScale, rendering, textContent, hasImported}
+  highlights: [],     // {id, page, rects:[[x1,y1,x2,y2]] in PDF user space, rgb, text}
+  color: "yellow", auto: false,
+  undo: [], redo: [], dirty: false,
+};
+let nextId = 1;
+
+const $ = (id) => document.getElementById(id);
+const els = {
+  pages: $("pages"), viewer: $("viewer"), list: $("list"), pop: $("pop"), toast: $("toast"),
+  main: $("main"), fileName: $("fileName"), dirty: $("dirty"),
+};
+const isNarrow = () => matchMedia("(max-width: 760px)").matches;
+
+/* ---------- small helpers ---------- */
+const css = (rgb, a = 1) => `rgba(${rgb.map((v) => Math.round(v * 255)).join(",")},${a})`;
+const num = (n) => +(+n).toFixed(3);
+let toastTimer;
+function toast(msg, ms = 3200) {
+  els.toast.textContent = msg; els.toast.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (els.toast.hidden = true), ms);
+}
+function confirmDialog(title, text, okLabel) {
+  const dlg = $("confirmDlg");
+  $("confirmTitle").textContent = title; $("confirmText").textContent = text; $("confirmOk").textContent = okLabel;
+  return new Promise((resolve) => {
+    const done = (v) => { dlg.close(); $("confirmOk").onclick = $("confirmCancel").onclick = null; resolve(v); };
+    $("confirmOk").onclick = () => done(true);
+    $("confirmCancel").onclick = () => done(false);
+    dlg.oncancel = () => resolve(false);
+    dlg.showModal();
+  });
+}
+const downloadsP = (window.claude && typeof window.claude.use === "function")
+  ? window.claude.use("downloads").catch(() => null) : Promise.resolve(null);
+
+/* ---------- opening documents ---------- */
+async function openFile(file) {
+  if (!file) return;
+  if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") { toast(`“${file.name}” isn’t a PDF.`); return; }
+  if (S.dirty && !S.sample) {
+    const ok = await confirmDialog("Discard unsaved highlights?",
+      `Your highlights in “${S.name}” haven’t been downloaded yet. Opening another file will lose them.`, "Open anyway");
+    if (!ok) return;
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  await openBytes(bytes, file.name, false);
+}
+
+async function openBytes(bytes, name, sample) {
+  hidePop();
+  let pdf, locked = false;
+  try {
+    const task = pdfjsLib.getDocument({ data: bytes.slice(), isEvalSupported: false });
+    task.onPassword = () => { locked = true; task.destroy(); };
+    pdf = await task.promise;
+  } catch (e) {
+    locked = locked || (e && (e.name === "PasswordException" || /password/i.test(e.message || "")));
+    toast(locked ? `“${name}” is password-protected. Remove the password, then open it again.`
+                 : `Couldn’t open “${name}”. The file may be damaged.`, 6000);
+    return;
+  }
+  if (S.pdf) S.pdf.destroy();
+  Object.assign(S, { pdf, bytes, name, sample, highlights: [], undo: [], redo: [], dirty: false, pages: [], fit: true });
+
+  els.pages.textContent = "";
+  if (sample) els.pages.appendChild(sampleBanner());
+  for (let i = 0; i < pdf.numPages; i++) {
+    const pdfPage = await pdf.getPage(i + 1);
+    const el = document.createElement("div"); el.className = "page"; el.dataset.index = i;
+    const hl = document.createElement("div"); hl.className = "hl-layer";
+    const text = document.createElement("div"); text.className = "textLayer";
+    const n = document.createElement("span"); n.className = "num"; n.textContent = `${i + 1} / ${pdf.numPages}`;
+    el.append(hl, text, n);
+    els.pages.appendChild(el);
+    const p = { pdfPage, el, hl, text, canvas: null, viewport: null, renderedScale: 0, rendering: false, textContent: null, hasImported: false };
+    S.pages.push(p);
+    await importHighlights(p, i);
+  }
+  els.fileName.textContent = sample ? "Sample document" : name;
+  els.fileName.title = name;
+  els.viewer.scrollTop = 0;
+  fitWidth();
+  renderSidebar(); updateUI();
+}
+
+/* Existing highlight annotations become editable highlights. */
+async function importHighlights(p, index) {
+  let annots = [];
+  try { annots = await p.pdfPage.getAnnotations(); } catch { return; }
+  for (const a of annots) {
+    if (a.subtype !== "Highlight") continue;
+    let rects = [];
+    const q = a.quadPoints;
+    if (Array.isArray(q) && q.length && Array.isArray(q[0])) {
+      rects = q.map((quad) => bbox(quad.map((pt) => [pt.x, pt.y])));
+    } else if (q && q.length >= 8) {
+      for (let k = 0; k + 7 < q.length; k += 8) rects.push(bbox([[q[k], q[k + 1]], [q[k + 2], q[k + 3]], [q[k + 4], q[k + 5]], [q[k + 6], q[k + 7]]]));
+    } else if (a.rect) {
+      rects = [[a.rect[0], a.rect[1], a.rect[2], a.rect[3]]];
+    }
+    if (!rects.length) continue;
+    const rgb = a.color && a.color.length >= 3 ? [a.color[0] / 255, a.color[1] / 255, a.color[2] / 255] : COLORS.yellow.rgb;
+    const h = { id: nextId++, page: index, rects, rgb, text: "" };
+    h.text = await textUnder(p, rects);
+    S.highlights.push(h);
+    p.hasImported = true;
+  }
+}
+function bbox(points) {
+  const xs = points.map((pt) => pt[0]), ys = points.map((pt) => pt[1]);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+async function textUnder(p, rects) {
+  if (!p.textContent) p.textContent = await p.pdfPage.getTextContent();
+  const out = [];
+  for (const it of p.textContent.items) {
+    if (!it.str || !it.transform) continue;
+    const x = it.transform[4] + (it.width || 0) / 2, y = it.transform[5] + (it.height || 0) / 3;
+    if (rects.some((r) => x >= r[0] - 1 && x <= r[2] + 1 && y >= r[1] - 1 && y <= r[3] + 1)) out.push(it.str);
+  }
+  return out.join(" ").replace(/\s+/g, " ").trim();
+}
+
+/* ---------- layout & rendering ---------- */
+function fitWidth() {
+  if (!S.pages.length) return;
+  const base = S.pages[0].pdfPage.getViewport({ scale: 1 });
+  const avail = els.viewer.clientWidth - 40;
+  S.fit = true;
+  setScale(Math.max(0.4, Math.min(2.2, avail / base.width)));
+}
+function setScale(scale) {
+  S.scale = scale;
+  for (const p of S.pages) {
+    p.viewport = p.pdfPage.getViewport({ scale });
+    p.el.style.width = `${Math.floor(p.viewport.width)}px`;
+    p.el.style.height = `${Math.floor(p.viewport.height)}px`;
+    if (p.renderedScale !== scale) { p.text.textContent = ""; }
+    drawHighlights(p);
+  }
+  $("zoomFit").textContent = `${Math.round(scale * 100)}%`;
+  renderVisible();
+}
+
+let rafPending = false;
+function renderVisible() {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => {
+    rafPending = false;
+    const vr = els.viewer.getBoundingClientRect();
+    for (const p of S.pages) {
+      const r = p.el.getBoundingClientRect();
+      if (r.bottom > vr.top - 900 && r.top < vr.bottom + 900 && p.renderedScale !== S.scale) renderPage(p);
+    }
+  });
+}
+
+async function renderPage(p) {
+  if (p.rendering) return;
+  p.rendering = true;
+  const scale = S.scale;
+  const vp = p.pdfPage.getViewport({ scale });
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.floor(vp.width * dpr);
+  canvas.height = Math.floor(vp.height * dpr);
+  try {
+    await p.pdfPage.render({
+      canvasContext: canvas.getContext("2d"), viewport: vp,
+      transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
+      // Pages with highlights we manage are drawn without their stored annotations, so they don't double up.
+      annotationMode: p.hasImported ? pdfjsLib.AnnotationMode.DISABLE : pdfjsLib.AnnotationMode.ENABLE,
+    }).promise;
+    if (scale === S.scale) {
+      if (p.canvas) p.canvas.remove();
+      p.el.prepend(canvas); p.canvas = canvas;
+      if (!p.textContent) p.textContent = await p.pdfPage.getTextContent();
+      p.text.textContent = "";
+      p.text.style.setProperty("--scale-factor", scale);
+      await pdfjsLib.renderTextLayer({ textContentSource: p.textContent, container: p.text, viewport: vp, textDivs: [] }).promise;
+      p.renderedScale = scale;
+    }
+  } catch (e) {
+    console.error(e);
+  } finally {
+    p.rendering = false;
+  }
+  if (p.renderedScale !== S.scale) renderVisible();
+}
+
+function drawHighlights(p) {
+  const index = S.pages.indexOf(p);
+  p.hl.textContent = "";
+  if (!p.viewport) return;
+  for (const h of S.highlights) {
+    if (h.page !== index) continue;
+    for (const r of h.rects) {
+      const v = p.viewport.convertToViewportRectangle(r);
+      const div = document.createElement("div");
+      div.className = "hl-rect"; div.dataset.id = h.id;
+      Object.assign(div.style, {
+        left: `${Math.min(v[0], v[2])}px`, top: `${Math.min(v[1], v[3])}px`,
+        width: `${Math.abs(v[2] - v[0])}px`, height: `${Math.abs(v[3] - v[1])}px`,
+        background: css(h.rgb, 0.55),
+      });
+      p.hl.appendChild(div);
+    }
+  }
+}
+function redrawPages(indexes) { for (const i of new Set(indexes)) if (S.pages[i]) drawHighlights(S.pages[i]); }
+
+/* ---------- selection → rectangles ---------- */
+function pageAt(x, y) {
+  return S.pages.find((p) => { const b = p.el.getBoundingClientRect(); return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom; });
+}
+
+function currentSelectionInfo() {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+  const range = sel.getRangeAt(0);
+  if (!els.pages.contains(range.commonAncestorContainer)) return null;
+  const text = sel.toString().replace(/\s+/g, " ").trim();
+  if (!text) return null;
+
+  // Measure text nodes only. Range.getClientRects() also returns boxes of whole
+  // elements inside the range, which would paint over entire pages.
+  const root = range.commonAncestorContainer.nodeType === 3 ? range.commonAncestorContainer.parentNode : range.commonAncestorContainer;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const rawByPage = new Map();
+  let node = range.commonAncestorContainer.nodeType === 3 ? range.commonAncestorContainer : walker.nextNode();
+  while (node) {
+    if (range.intersectsNode(node) && node.parentElement && node.parentElement.closest(".textLayer")) {
+      const r = document.createRange();
+      r.selectNodeContents(node);
+      if (node === range.startContainer) r.setStart(node, range.startOffset);
+      if (node === range.endContainer) r.setEnd(node, range.endOffset);
+      for (const c of r.getClientRects()) {
+        if (c.width < 0.5 || c.height < 0.5) continue;
+        const p = pageAt(c.left + c.width / 2, c.top + c.height / 2);
+        if (!p) continue;
+        const b = p.el.getBoundingClientRect();
+        if (!rawByPage.has(p)) rawByPage.set(p, []);
+        rawByPage.get(p).push([c.left - b.left, c.top - b.top, c.right - b.left, c.bottom - b.top]);
+      }
+    }
+    if (node === range.commonAncestorContainer) break;
+    node = walker.nextNode();
+  }
+  const parts = [];
+  for (const [p, raw] of rawByPage) {
+    const rects = mergeLines(raw).map(([x1, y1, x2, y2]) => {
+      const a = p.viewport.convertToPdfPoint(x1, y1), b = p.viewport.convertToPdfPoint(x2, y2);
+      return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])].map(num);
+    });
+    if (rects.length) parts.push({ page: S.pages.indexOf(p), rects });
+  }
+  if (!parts.length) return null;
+  parts.sort((a, b) => a.page - b.page);
+  return { text, parts, range };
+}
+
+/* Joins word boxes on the same line into one rectangle, but keeps big gaps (columns) apart. */
+function mergeLines(rects) {
+  rects.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  const lines = [];
+  for (const r of rects) {
+    const h = r[3] - r[1];
+    const line = lines.find((l) => {
+      const overlap = Math.min(l[3], r[3]) - Math.max(l[1], r[1]);
+      const minH = Math.min(l[3] - l[1], h);
+      return overlap > minH * 0.5 && r[0] <= l[2] + minH * 1.2 && r[2] >= l[0] - minH * 1.2;
+    });
+    if (line) { line[0] = Math.min(line[0], r[0]); line[1] = Math.min(line[1], r[1]); line[2] = Math.max(line[2], r[2]); line[3] = Math.max(line[3], r[3]); }
+    else lines.push(r.slice());
+  }
+  return lines;
+}
+
+/* ---------- edits (all undoable) ---------- */
+function commit(action) {
+  apply(action, "do");
+  S.undo.push(action); S.redo = [];
+  if (S.undo.length > 200) S.undo.shift();
+}
+function apply(action, dir) {
+  const touched = [];
+  if (action.type === "add" || action.type === "remove") {
+    const adding = (action.type === "add") === (dir !== "undo");
+    for (const h of action.items) {
+      touched.push(h.page);
+      if (adding) S.highlights.push(h);
+      else S.highlights = S.highlights.filter((x) => x.id !== h.id);
+    }
+  } else if (action.type === "recolor") {
+    for (const c of action.items) {
+      const h = S.highlights.find((x) => x.id === c.id);
+      if (h) { h.rgb = dir === "undo" ? c.from : c.to; touched.push(h.page); }
+    }
+  }
+  S.dirty = true;
+  redrawPages(touched); renderSidebar(); updateUI();
+}
+function undo() { const a = S.undo.pop(); if (!a) return; apply(a, "undo"); S.redo.push(a); toast("Undone", 1200); }
+function redo() { const a = S.redo.pop(); if (!a) return; apply(a, "redo"); S.undo.push(a); }
+
+function highlightSelection(colorKey = S.color) {
+  const info = currentSelectionInfo();
+  if (!info) { toast("Select some text in the PDF first."); return false; }
+  const rgb = COLORS[colorKey].rgb.slice();
+  const items = info.parts.map((part) => ({ id: nextId++, page: part.page, rects: part.rects, rgb, text: info.text }));
+  commit({ type: "add", items });
+  window.getSelection().removeAllRanges();
+  hidePop();
+  return true;
+}
+function removeHighlight(id) {
+  const h = S.highlights.find((x) => x.id === id);
+  if (h) commit({ type: "remove", items: [h] });
+  hidePop();
+}
+function recolorHighlight(id, key) {
+  const h = S.highlights.find((x) => x.id === id);
+  if (h) commit({ type: "recolor", items: [{ id, from: h.rgb, to: COLORS[key].rgb.slice() }] });
+  hidePop();
+}
+
+/* ---------- popover ---------- */
+function swatchButton(key, onPick, checked) {
+  const b = document.createElement("button");
+  b.className = "swatch"; b.type = "button";
+  b.style.background = css(COLORS[key].rgb);
+  b.setAttribute("aria-label", COLORS[key].name);
+  b.title = `${COLORS[key].name} (${COLOR_KEYS.indexOf(key) + 1})`;
+  if (checked !== undefined) { b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(checked)); }
+  b.addEventListener("mousedown", (e) => e.preventDefault()); // keep the text selection alive
+  b.addEventListener("click", () => onPick(key));
+  return b;
+}
+function placePop(anchor) {
+  const pop = els.pop;
+  pop.hidden = false;
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  let x = anchor.left + anchor.width / 2 - w / 2;
+  let y = anchor.top - h - 10;
+  if (y < 8) y = anchor.bottom + 10;
+  x = Math.max(8, Math.min(window.innerWidth - w - 8, x));
+  y = Math.max(8, Math.min(window.innerHeight - h - 8, y));
+  pop.style.left = `${x}px`; pop.style.top = `${y}px`;
+}
+function showSelectionPop() {
+  const info = currentSelectionInfo();
+  if (!info) { if (els.pop.dataset.kind === "selection") hidePop(); return; }
+  const pop = els.pop;
+  pop.textContent = ""; pop.dataset.kind = "selection";
+  const lbl = document.createElement("span"); lbl.className = "lbl"; lbl.textContent = "Highlight";
+  pop.append(lbl);
+  for (const k of COLOR_KEYS) pop.append(swatchButton(k, (key) => { setColor(key); highlightSelection(key); }));
+  const rects = info.range.getClientRects();
+  placePop(rects.length ? rects[rects.length - 1] : info.range.getBoundingClientRect());
+}
+function showHighlightPop(h, anchor) {
+  const pop = els.pop;
+  pop.textContent = ""; pop.dataset.kind = "existing"; pop.dataset.id = h.id;
+  for (const k of COLOR_KEYS) pop.append(swatchButton(k, (key) => recolorHighlight(h.id, key)));
+  const del = document.createElement("button");
+  del.className = "btn danger"; del.type = "button"; del.textContent = "Remove";
+  del.addEventListener("click", () => removeHighlight(h.id));
+  pop.append(del);
+  placePop(anchor);
+}
+function hidePop() { els.pop.hidden = true; els.pop.dataset.kind = ""; }
+
+/* ---------- sidebar ---------- */
+function sortedHighlights() {
+  return S.highlights.slice().sort((a, b) =>
+    a.page - b.page || Math.max(...b.rects.map((r) => r[3])) - Math.max(...a.rects.map((r) => r[3])) ||
+    Math.min(...a.rects.map((r) => r[0])) - Math.min(...b.rects.map((r) => r[0])));
+}
+function renderSidebar() {
+  const list = els.list;
+  list.textContent = "";
+  const items = sortedHighlights();
+  $("listCount").textContent = items.length ? `· ${items.length}` : "";
+  $("sideCount").textContent = items.length;
+  if (!items.length) {
+    const li = document.createElement("li"); li.className = "empty";
+    li.innerHTML = S.pdf
+      ? "No highlights yet. Select text on a page, then pick a color. Or turn on <b>Auto-highlight</b> and every selection is highlighted right away."
+      : "Open a PDF to start.";
+    list.append(li);
+    return;
+  }
+  for (const h of items) {
+    const li = document.createElement("li");
+    li.className = "item"; li.tabIndex = 0;
+    const bar = document.createElement("span"); bar.className = "bar-c"; bar.style.background = css(h.rgb);
+    const body = document.createElement("div");
+    const t = document.createElement("span"); t.className = "t"; t.textContent = h.text || "(no text found)";
+    const pg = document.createElement("span"); pg.className = "p"; pg.textContent = `p. ${h.page + 1}`;
+    body.append(t, pg);
+    const x = document.createElement("button"); x.className = "x"; x.type = "button"; x.textContent = "×";
+    x.setAttribute("aria-label", "Remove highlight");
+    x.addEventListener("click", (e) => { e.stopPropagation(); removeHighlight(h.id); });
+    li.append(bar, body, x);
+    const go = () => reveal(h);
+    li.addEventListener("click", go);
+    li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    list.append(li);
+  }
+}
+function reveal(h) {
+  const p = S.pages[h.page];
+  if (!p) return;
+  const v = p.viewport.convertToViewportRectangle(h.rects[0]);
+  const top = p.el.offsetTop + Math.min(v[1], v[3]) - els.viewer.clientHeight / 3;
+  els.viewer.scrollTo({ top: Math.max(0, top), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  for (const d of p.hl.querySelectorAll(`[data-id="${h.id}"]`)) { d.classList.remove("flash"); void d.offsetWidth; d.classList.add("flash"); }
+  if (isNarrow()) setSide(false);
+}
+
+/* ---------- toolbar state ---------- */
+function setColor(key) {
+  S.color = key;
+  for (const b of $("swatches").children) b.setAttribute("aria-checked", String(b.dataset.key === key));
+}
+function setSide(open) {
+  els.main.classList.toggle("side-open", open);
+  els.main.classList.toggle("no-side", !open);
+  $("sideBtn").setAttribute("aria-expanded", String(open));
+  if (!isNarrow() && S.fit) requestAnimationFrame(fitWidth);
+}
+function updateUI() {
+  const has = !!S.pdf;
+  for (const id of ["saveBtn", "zoomIn", "zoomOut", "zoomFit", "modeBtn"]) $(id).disabled = !has;
+  $("undoBtn").disabled = !S.undo.length;
+  $("copyBtn").disabled = !S.highlights.length;
+  els.dirty.hidden = !(S.dirty && !S.sample);
+}
+
+/* ---------- saving ---------- */
+async function buildPdf() {
+  const { PDFDocument, PDFName, PDFHexString, PDFString } = PDFLib;
+  let doc;
+  try {
+    doc = await PDFDocument.load(S.bytes, { updateMetadata: false });
+  } catch (e) {
+    if (/encrypt/i.test(String(e && e.message))) throw new Error("This PDF is encrypted, so highlights can’t be written into it. Remove its security settings and try again.");
+    throw new Error("This PDF couldn’t be re-saved. It may use features the saver doesn’t support.");
+  }
+  const ctx = doc.context;
+  const pages = doc.getPages();
+  const HL = PDFName.of("Highlight"), SUBTYPE = PDFName.of("Subtype");
+
+  // Highlights already in the file were imported into the editor; drop them and write the current set.
+  for (const pg of pages) {
+    const annots = pg.node.Annots();
+    if (!annots) continue;
+    for (let i = annots.size() - 1; i >= 0; i--) {
+      const d = ctx.lookup(annots.get(i));
+      if (d && typeof d.get === "function" && d.get(SUBTYPE) === HL) annots.remove(i);
+    }
+  }
+
+  for (const h of S.highlights) {
+    const pg = pages[h.page];
+    if (!pg || !h.rects.length) continue;
+    const [r, g, b] = h.rgb.map(num);
+    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+    const quads = [], ops = [];
+    for (const [a, bb, c, d] of h.rects) {
+      x1 = Math.min(x1, a); y1 = Math.min(y1, bb); x2 = Math.max(x2, c); y2 = Math.max(y2, d);
+      quads.push(num(a), num(d), num(c), num(d), num(a), num(bb), num(c), num(bb));
+      ops.push(`${num(a)} ${num(bb)} ${num(c - a)} ${num(d - bb)} re`);
+    }
+    const rect = [num(x1), num(y1), num(x2), num(y2)];
+    // An explicit appearance stream, so every viewer draws the highlight the same way.
+    const gs = ctx.obj({ Type: "ExtGState", BM: "Multiply", ca: ALPHA, CA: ALPHA });
+    const ap = ctx.stream(`q /GS0 gs ${r} ${g} ${b} rg ${ops.join(" ")} f Q`, {
+      Type: "XObject", Subtype: "Form", FormType: 1, BBox: rect, Resources: { ExtGState: { GS0: gs } },
+    });
+    const annot = ctx.obj({
+      Type: "Annot", Subtype: "Highlight", Rect: rect, QuadPoints: quads, C: [r, g, b], CA: ALPHA, F: 4,
+      P: pg.ref, AP: { N: ctx.register(ap) },
+      Contents: PDFHexString.fromText(h.text || ""), M: PDFString.fromDate(new Date()),
+    });
+    pg.node.addAnnot(ctx.register(annot));
+  }
+  return doc.save();
+}
+
+async function download() {
+  if (!S.pdf) return;
+  const btn = $("saveBtn");
+  btn.disabled = true;
+  let out;
+  try { out = await buildPdf(); }
+  catch (e) { toast(e.message || String(e), 7000); btn.disabled = false; return; }
+  const base = S.name.replace(/\.pdf$/i, "") || "document";
+  const filename = `${base} (highlighted).pdf`;
+  const blob = new Blob([out], { type: "application/pdf" });
+  const dl = await downloadsP;
+  try {
+    if (dl) {
+      await dl.save({ filename, data: blob });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+    S.dirty = false;
+    toast(`Downloaded “${filename}” with ${S.highlights.length} highlight${S.highlights.length === 1 ? "" : "s"}.`);
+  } catch (e) {
+    const code = e && e.code;
+    if (code === "declined") toast("Download cancelled.");
+    else if (code === "rate_limited") toast("A download prompt is already open.");
+    else toast("Downloading isn’t available in this view. Open the page in your browser to save files.", 6000);
+  } finally {
+    btn.disabled = false; updateUI();
+  }
+}
+
+async function copyAll() {
+  const text = sortedHighlights().map((h) => `p. ${h.page + 1}: ${h.text}`).join("\n");
+  try { await navigator.clipboard.writeText(text); toast("Copied the text of every highlight."); }
+  catch {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.append(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch {}
+    ta.remove();
+    toast(ok ? "Copied the text of every highlight." : "Couldn’t reach the clipboard here.");
+  }
+}
+
+/* ---------- sample document (shown on first load) ---------- */
+function sampleBanner() {
+  const d = document.createElement("div"); d.className = "banner";
+  d.innerHTML = `<span><b>Sample document.</b> <span class="muted">Try selecting a sentence. Your own files never leave this browser.</span></span>`;
+  const b = document.createElement("label"); b.className = "btn primary"; b.htmlFor = "fileInput"; b.textContent = "Open your PDF";
+  d.append(b);
+  return d;
+}
+async function makeSample() {
+  const { PDFDocument, StandardFonts, rgb } = PDFLib;
+  const doc = await PDFDocument.create();
+  doc.setTitle("How to read a paper in three passes");
+  const serif = await doc.embedFont(StandardFonts.TimesRoman);
+  const bold = await doc.embedFont(StandardFonts.TimesRomanBold);
+  const sans = await doc.embedFont(StandardFonts.Helvetica);
+  const page = doc.addPage([612, 792]);
+  const left = 78, width = 456, lines = [];
+  let y = 712;
+  const put = (text, font, size, color = rgb(0.1, 0.12, 0.16)) => { page.drawText(text, { x: left, y, size, font, color }); lines.push({ text, x: left, y, size, font }); };
+  const para = (text, size = 12, leading = 17.5) => {
+    let line = "";
+    for (const word of text.split(" ")) {
+      const test = line ? `${line} ${word}` : word;
+      if (serif.widthOfTextAtSize(test, size) > width && line) { put(line, serif, size); y -= leading; line = word; }
+      else line = test;
+    }
+    if (line) { put(line, serif, size); y -= leading; }
+    y -= 9;
+  };
+  page.drawText("READING NOTES", { x: left, y: y + 26, size: 9, font: sans, color: rgb(0.35, 0.4, 0.48) });
+  put("How to Read a Paper in Three Passes", bold, 22); y -= 34;
+  para("Researchers spend a large share of their time reading papers, yet few are taught how to do it. A useful habit is to read each paper in up to three passes, where every pass has its own goal and builds on the one before.");
+  put("The first pass", bold, 14); y -= 22;
+  para("The first pass is a quick scan of five to ten minutes. Read the title, abstract and introduction, the section headings, and the conclusions, and glance at the references. Afterward you should be able to say what kind of paper it is, what it claims, and whether it is worth reading further.");
+  put("The second pass", bold, 14); y -= 22;
+  para("In the second pass, read with more care but skip the proofs. Look closely at the figures and diagrams, and mark the references you have not read. This takes up to an hour, and you should then be able to summarize the main thrust of the paper to someone else.");
+  put("The third pass", bold, 14); y -= 22;
+  para("The third pass is about virtually re-implementing the paper: making the same assumptions as the authors and recreating the work. Comparing your version with theirs exposes both the paper's innovations and its hidden failings. Expect it to take several hours.");
+  para("Highlighting works best when it is selective. Mark the claim, the evidence, and the open question, and leave the rest of the page clean.");
+  const bytes = await doc.save();
+
+  const box = (l) => [l.x, l.y - l.size * 0.24, l.x + l.font.widthOfTextAtSize(l.text, l.size), l.y + l.size * 0.80].map(num);
+  const find = (start) => lines.find((l) => l.text.startsWith(start));
+  const seeds = [];
+  const a = find("The first pass is a quick scan");
+  if (a) seeds.push({ rects: [box(a)], key: "yellow" });
+  const b1 = lines.find((l) => /virtually re-implementing/.test(l.text));
+  if (b1) seeds.push({ rects: [box(b1)], key: "green" });
+  return { bytes, seeds };
+}
+
+/* ---------- events ---------- */
+function bind() {
+  for (const k of COLOR_KEYS) {
+    const b = swatchButton(k, setColor, k === S.color);
+    b.dataset.key = k;
+    $("swatches").append(b);
+  }
+  $("fileInput").addEventListener("change", (e) => { openFile(e.target.files[0]); e.target.value = ""; });
+  $("modeBtn").addEventListener("click", () => {
+    S.auto = !S.auto;
+    $("modeBtn").setAttribute("aria-pressed", String(S.auto));
+    toast(S.auto ? "Auto-highlight is on. Every selection is highlighted when you let go." : "Auto-highlight is off.");
+  });
+  $("zoomIn").addEventListener("click", () => { S.fit = false; setScale(Math.min(4, S.scale * 1.2)); });
+  $("zoomOut").addEventListener("click", () => { S.fit = false; setScale(Math.max(0.3, S.scale / 1.2)); });
+  $("zoomFit").addEventListener("click", fitWidth);
+  $("undoBtn").addEventListener("click", undo);
+  $("saveBtn").addEventListener("click", download);
+  $("copyBtn").addEventListener("click", copyAll);
+  $("sideBtn").addEventListener("click", () => setSide(!(els.main.classList.contains("side-open") || (!isNarrow() && !els.main.classList.contains("no-side")))));
+  $("sideClose").addEventListener("click", () => setSide(false));
+
+  els.viewer.addEventListener("scroll", () => { renderVisible(); if (!els.pop.hidden) hidePop(); }, { passive: true });
+  let resizeT, wasNarrow = isNarrow();
+  window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => {
+    const narrow = isNarrow();
+    if (narrow !== wasNarrow) { wasNarrow = narrow; setSide(!narrow); }
+    if (S.fit) fitWidth();
+  }, 150); });
+
+  // Finishing a selection: auto-highlight, or offer the color popover.
+  let pointerDown = false;
+  els.pages.addEventListener("pointerdown", (e) => { if (!els.pop.contains(e.target)) pointerDown = true; });
+  document.addEventListener("pointerup", (e) => {
+    if (!pointerDown) return;
+    pointerDown = false;
+    setTimeout(() => {
+      const info = currentSelectionInfo();
+      if (info) { if (S.auto && e.pointerType === "mouse") highlightSelection(); else showSelectionPop(); return; }
+      // A plain click on a highlight opens its menu.
+      const p = pageAt(e.clientX, e.clientY);
+      if (!p || !p.viewport) { hidePop(); return; }
+      const b = p.el.getBoundingClientRect();
+      const [px, py] = p.viewport.convertToPdfPoint(e.clientX - b.left, e.clientY - b.top);
+      const idx = S.pages.indexOf(p);
+      const hit = S.highlights.slice().reverse().find((h) => h.page === idx && h.rects.some((r) => px >= r[0] && px <= r[2] && py >= r[1] && py <= r[3]));
+      if (hit) showHighlightPop(hit, { left: e.clientX, top: e.clientY - 8, width: 0, height: 16, bottom: e.clientY + 8 });
+      else hidePop();
+    }, 0);
+  });
+  // Touch and keyboard selections arrive without a pointerup we can trust.
+  let selT;
+  document.addEventListener("selectionchange", () => {
+    if (pointerDown) return;
+    clearTimeout(selT);
+    selT = setTimeout(showSelectionPop, 350);
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (!els.pop.hidden && !els.pop.contains(e.target) && !els.pages.contains(e.target)) hidePop();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest && e.target.closest("input, textarea, dialog")) return;
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+    if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); return; }
+    if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); download(); return; }
+    if (mod || e.altKey) return;
+    if (e.key === "Escape") { hidePop(); return; }
+    if (e.key.toLowerCase() === "h" && S.pdf) { e.preventDefault(); highlightSelection(); return; }
+    const n = Number(e.key);
+    if (n >= 1 && n <= COLOR_KEYS.length) {
+      setColor(COLOR_KEYS[n - 1]);
+      if (els.pop.dataset.kind === "existing") recolorHighlight(Number(els.pop.dataset.id), COLOR_KEYS[n - 1]);
+      return;
+    }
+    if ((e.key === "Delete" || e.key === "Backspace") && els.pop.dataset.kind === "existing") {
+      e.preventDefault(); removeHighlight(Number(els.pop.dataset.id));
+    }
+  });
+
+  // Drag and drop anywhere on the page.
+  let dragDepth = 0;
+  const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  window.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; $("dropHint").hidden = false; });
+  window.addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+  window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("dropHint").hidden = true; } });
+  window.addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); dragDepth = 0; $("dropHint").hidden = true;
+    const f = Array.from(e.dataTransfer.files).find((x) => /\.pdf$/i.test(x.name) || x.type === "application/pdf");
+    if (f) openFile(f); else toast("Drop a PDF file to open it.");
+  });
+  window.addEventListener("beforeunload", (e) => { if (S.dirty && !S.sample) { e.preventDefault(); e.returnValue = ""; } });
+}
+
+async function start() {
+  bind();
+  setSide(!isNarrow());
+  updateUI(); renderSidebar();
+  try {
+    const { bytes, seeds } = await makeSample();
+    await openBytes(bytes, "How to read a paper.pdf", true);
+    for (const s of seeds) S.highlights.push({ id: nextId++, page: 0, rects: s.rects, rgb: COLORS[s.key].rgb.slice(), text: "" });
+    const p0 = S.pages[0];
+    for (const h of S.highlights) h.text = await textUnder(p0, h.rects);
+    drawHighlights(p0); renderSidebar(); updateUI();
+  } catch (e) {
+    console.error(e);
+    toast("Open a PDF to start highlighting.");
+  }
+}
+start();
+})();
+</script>
+
+</body>
+</html>
