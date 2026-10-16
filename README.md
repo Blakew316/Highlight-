@@ -1,61 +1,36 @@
 # Highlight
 
-A small native macOS app for highlighting PDFs. It uses Apple's PDFKit (the same engine as Preview), so highlights are saved as standard PDF highlight annotations that show up in Preview, Acrobat, and other PDF readers.
+A website for highlighting PDFs in your browser. Open a PDF, select text, pick a color, and download the PDF with your highlights saved into it. The highlights are standard PDF highlight annotations, so they show up in Preview, Acrobat, and other PDF readers.
 
-## Requirements
+Your files stay on your computer. The PDF is opened and saved entirely in the browser and is never uploaded.
 
-- macOS 13 (Ventura) or newer
-- Xcode 15+ (or the Xcode Command Line Tools, Swift 5.9+). Running the tests requires full Xcode.
+## Use it
 
-## Install
-
-```bash
-git clone https://github.com/Blakew316/Highlight-.git
-cd Highlight-
-./scripts/build-app.sh
-cp -R build/Highlight.app /Applications/
-```
-
-Then open **Highlight** from Applications, or right-click any PDF in Finder → **Open With → Highlight**.
-
-For a quick run without installing: `swift run`.
-
-## Using it
+- **Hosted:** open `index.html` from GitHub Pages (Settings → Pages → deploy from the `main` branch, root folder), or
+- **Locally:** download `index.html` and double-click it. It loads PDF.js and pdf-lib from cdnjs, so it needs an internet connection.
 
 | Action | How |
 |---|---|
-| Open a PDF | ⌘O, or drag a PDF into the window |
-| Highlight selected text | Select text, then ⇧⌘H (or the toolbar button, or right-click → Highlight) |
-| Highlighter mode | ⌘E or the highlighter toolbar button: everything you select is highlighted right away |
-| Choose a color | Click a toolbar swatch, or ⌘1–⌘5 (yellow, green, blue, pink, orange) |
-| Remove a highlight | Right-click it → Remove Highlight, or select text and press ⌘⌫ |
-| Recolor a highlight | Right-click it → Change Color |
-| Jump to a highlight | Click it in the sidebar |
-| Copy all highlighted text | Sidebar → Copy All Highlights (or the Highlight menu) |
-| Undo / Redo | ⌘Z / ⇧⌘Z |
-| Save / Save As | ⌘S / ⇧⌘S |
-| Zoom | ⌘+, ⌘−, ⌘0 (actual size), ⌘9 (fit) |
+| Open a PDF | **Open PDF**, or drag a PDF onto the page |
+| Highlight | Select text, then click a color in the popup (or press **H**) |
+| Auto-highlight | Toggle **Auto-highlight**: every selection is highlighted when you let go |
+| Choose a color | Toolbar swatches, or keys **1–5** |
+| Recolor or remove | Click a highlight, then pick a color or **Remove** (or press Delete) |
+| Jump to a highlight | Click it in the Highlights list |
+| Copy highlighted text | **Copy all text** at the bottom of the list |
+| Undo / redo | ⌘Z / ⇧⌘Z |
+| Save | **Download PDF** (⌘S) |
 
-Highlight asks before quitting or opening another file if you have unsaved highlights. Saves are written to a temporary file first and then swapped in, so a failed save never damages the original.
+Highlights already in a PDF, including ones made in Preview or by this site earlier, are loaded as editable highlights.
 
 ## Limitations
 
-- PDFs that need a password to open aren't supported. Saving an unlocked copy would remove the password.
-- Scanned PDFs without a text layer can't be highlighted, because there's no text to select. Run OCR on them first (for example in Preview or Acrobat).
-- Highlights are stored one per line of text, so a three-line highlight appears as three entries in the sidebar.
+- Password-protected PDFs can't be opened, and encrypted PDFs can be viewed but not saved.
+- Scanned PDFs without a text layer have nothing to select. Run OCR on them first.
+- On pages that already had highlights, other annotation types (notes, stamps, drawings) aren't drawn on screen. They are still kept in the downloaded file.
 
 ## Development
 
-```bash
-swift build     # compile
-swift test      # run the tests (needs Xcode)
-open Package.swift   # work on it in Xcode
-```
+`site/app.html` is the source. It is the body of the page, the form Claude artifacts publish. `./scripts/build-site.sh` wraps it in a full HTML document at `index.html`. Run that script after editing, and commit both files.
 
-Code layout (`Sources/Highlight`):
-
-- `HighlightApp.swift`: app entry point, menus, quit and Open With handling
-- `DocumentModel.swift`: the open document, highlight add/remove/recolor with undo, open and save
-- `Highlighter.swift`: creates and finds highlight annotations (PDFKit only, no UI)
-- `HighlightPDFView.swift`: PDFView subclass for highlighter mode and the right-click menu
-- `ContentView.swift`: SwiftUI window, toolbar, and sidebar
+Libraries: [PDF.js](https://mozilla.github.io/pdf.js/) 3.11.174 renders pages and the selectable text layer, and [pdf-lib](https://pdf-lib.js.org/) 1.17.1 writes the highlight annotations.
