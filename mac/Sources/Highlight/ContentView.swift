@@ -6,6 +6,7 @@ struct ContentView: View {
     @ObservedObject var model: DocumentModel
     /// The highlights sidebar is pinned open: any attempt to collapse it is undone.
     @State private var columns: NavigationSplitViewVisibility = .all
+    @State private var findQuery = ""
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columns) {
@@ -22,10 +23,26 @@ struct ContentView: View {
         .onChange(of: columns) { visibility in
             if visibility != .all { columns = .all }
         }
+        .searchable(text: $findQuery, placement: .toolbar, prompt: "Find in PDF")
+        .onSubmit(of: .search) { model.find(findQuery) }
+        .onChange(of: findQuery) { query in
+            if query.trimmingCharacters(in: .whitespaces).count < 2 { model.clearFind() }
+        }
         .navigationTitle(model.title)
         .navigationSubtitle(model.isDirty ? "Edited" : "")
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                if !model.findResults.isEmpty {
+                    Text("\(model.findIndex + 1) of \(model.findResults.count)")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                    Button { model.findPrevious() } label: { Label("Previous Match", systemImage: "chevron.up") }
+                        .help("Previous match (⇧⌘G)")
+                    Button { model.findNext() } label: { Label("Next Match", systemImage: "chevron.down") }
+                        .help("Next match (⌘G)")
+                    Button("Highlight All") { model.highlightAllMatches() }
+                        .help("Highlight every match in the current color")
+                }
                 Toggle(isOn: $model.highlighterMode) {
                     Label("Highlighter", systemImage: "highlighter")
                 }
@@ -141,10 +158,10 @@ struct HighlightsSidebar: View {
                 HighlightRow(item: item)
                     .tag(item.id)
                     .contextMenu {
-                        Button("Remove Highlight") { model.removeHighlights([item.placed]) }
+                        Button("Remove Highlight") { model.removeHighlights(item.members) }
                         Menu("Change Color") {
                             ForEach(HighlightColor.allCases) { option in
-                                Button(option.name) { model.recolor([item.placed], to: option) }
+                                Button(option.name) { model.recolor(item.members, to: option) }
                             }
                         }
                     }

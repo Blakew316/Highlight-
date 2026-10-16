@@ -11,16 +11,34 @@ enum Highlighter {
     /// Builds one highlight annotation per selected line, per page.
     /// One-per-line keeps highlights tight to the text instead of painting a
     /// single box over the whole paragraph's bounding rectangle.
+    /// All lines share a group id (stored in each annotation's /NM name) so the
+    /// sidebar can show and remove them as one highlight.
     static func makeAnnotations(for selection: PDFSelection, color: NSColor) -> [PlacedAnnotation] {
+        let group = UUID().uuidString
         var result: [PlacedAnnotation] = []
         for line in selection.selectionsByLine() {
             for page in line.pages {
                 let bounds = line.bounds(for: page)
                 guard bounds.width > 0.5, bounds.height > 0.5 else { continue }
-                result.append(PlacedAnnotation(annotation: makeAnnotation(bounds: bounds, color: color), page: page))
+                let annotation = makeAnnotation(bounds: bounds, color: color)
+                // /NM must be unique per annotation, so each line gets a suffix.
+                annotation.setValue("\(group)\(groupSeparator)\(result.count)", forAnnotationKey: .name)
+                result.append(PlacedAnnotation(annotation: annotation, page: page))
             }
         }
         return result
+    }
+
+    static let groupSeparator = "#"
+
+    /// Identifies which highlight a line belongs to. Annotations from other apps
+    /// have no group and stand alone.
+    static func groupKey(of annotation: PDFAnnotation) -> String {
+        if let name = annotation.value(forAnnotationKey: .name) as? String,
+           let cut = name.range(of: groupSeparator, options: .backwards) {
+            return String(name[..<cut.lowerBound])
+        }
+        return "solo-\(ObjectIdentifier(annotation).hashValue)"
     }
 
     /// Creates a highlight annotation covering `bounds` (page coordinates).

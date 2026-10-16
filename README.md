@@ -21,11 +21,15 @@ Your files stay on your computer. The PDF is opened and saved entirely in the br
 | Choose a color | Toolbar swatches, or keys **1–5** |
 | Recolor or remove | Click a highlight, then pick a color or **Remove** (or press Delete) |
 | Jump to a highlight | Click it in the Highlights list |
+| Find | ⌘F, then Enter / ⇧Enter for next and previous, or **Highlight all matches** |
 | Copy highlighted text | **Copy all text** at the bottom of the list |
+| Export highlighted text | **Export Markdown** at the bottom of the list |
 | Undo / redo | ⌘Z / ⇧⌘Z |
 | Save | **Download PDF** (⌘S) |
 
-Highlights already in a PDF, including ones made in Preview or by this site earlier, are loaded as editable highlights.
+Highlights already in a PDF, including ones made in Preview or by this site earlier, are loaded as editable highlights. Highlights are saved as plain highlights, with no comment or note text attached.
+
+Large PDFs open on page 1 right away while the rest load in the background. Pages far off screen are released from memory. Until you download, your highlights are auto-saved in this browser, and reopening the same file offers to restore them.
 
 ### Limitations
 
@@ -70,8 +74,10 @@ Then open **Highlight** from Applications, or right-click a PDF in Finder → **
 | Highlighter mode | ⌘E: every selection is highlighted right away |
 | Color | Toolbar swatches or ⌘1–⌘5 |
 | Remove / recolor | Right-click a highlight, or select text and press ⌘⌫ to remove |
+| Find | Search field in the toolbar, then ⌘G / ⇧⌘G, or **Highlight All** |
+| Export highlighted text | File → Export Highlights as Markdown… (⇧⌘E) |
 | Undo / redo | ⌘Z / ⇧⌘Z |
 | Save / Save As | ⌘S / ⇧⌘S (saves in place, writing to a temp file first) |
 | Zoom | ⌘+, ⌘−, ⌘0 actual size, ⌘9 fit |
 
-The app asks before quitting or opening another file with unsaved highlights. It refuses PDFs that need a password, because saving would remove the password. `swift test` (needs full Xcode) runs the tests, and CI builds and tests the app on macOS for every change under `mac/`.
+A highlight that spans several lines appears as one entry in the list and is removed or recolored as one. The app asks before quitting or opening another file with unsaved highlights. It refuses PDFs that need a password, because saving would remove the password. `swift test` (needs full Xcode) runs the tests, and CI builds and tests the app on macOS for every change under `mac/`.
