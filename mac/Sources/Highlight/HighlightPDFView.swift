@@ -8,7 +8,26 @@ final class HighlightPDFView: PDFView {
     var onSelectionFinished: (() -> Void)?
     var menuCustomizer: ((NSMenu, NSEvent) -> Void)?
 
+    /// When true, dragging draws a box to highlight instead of selecting text. This
+    /// reaches areas text selection can't: blank signature lines, form fields (which
+    /// take the click themselves) and scanned pages with no text.
+    var areaMode = false {
+        didSet { window?.invalidateCursorRects(for: self) }
+    }
+    /// Called while dragging (`finished` false) and once on release (`finished` true),
+    /// with the box in page coordinates, clipped to the page.
+    var onAreaDrag: ((PDFPage, CGRect, _ finished: Bool) -> Void)?
+    private var areaStart: (page: PDFPage, point: CGPoint)?
+
     override func mouseDown(with event: NSEvent) {
+        if areaMode {
+            // Skip PDFView's own handling so form fields and links don't take the click.
+            let viewPoint = convert(event.locationInWindow, from: nil)
+            if let page = page(for: viewPoint, nearest: true) {
+                areaStart = (page, convert(viewPoint, to: page))
+            }
+            return
+        }
         super.mouseDown(with: event)
         // PDFView can run its own drag-tracking loop inside mouseDown and swallow
         // the matching mouseUp. If the button is already released, the drag is over.
@@ -17,9 +36,37 @@ final class HighlightPDFView: PDFView {
         }
     }
 
+    override func mouseDragged(with event: NSEvent) {
+        guard areaMode else { return super.mouseDragged(with: event) }
+        if let rect = areaRect(for: event) { onAreaDrag?(rect.page, rect.box, false) }
+    }
+
     override func mouseUp(with event: NSEvent) {
-        super.mouseUp(with: event)
-        finishSelectionIfNeeded()
+        guard areaMode else {
+            super.mouseUp(with: event)
+            finishSelectionIfNeeded()
+            return
+        }
+        if let rect = areaRect(for: event) { onAreaDrag?(rect.page, rect.box, true) }
+        areaStart = nil
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        if areaMode { NSCursor.crosshair.set() } else { super.mouseMoved(with: event) }
+    }
+
+    override func resetCursorRects() {
+        if areaMode { addCursorRect(bounds, cursor: .crosshair) } else { super.resetCursorRects() }
+    }
+
+    /// The box from the drag start to the mouse, on the start page, clipped to that page.
+    private func areaRect(for event: NSEvent) -> (page: PDFPage, box: CGRect)? {
+        guard let start = areaStart else { return nil }
+        let point = convert(convert(event.locationInWindow, from: nil), to: start.page)
+        let box = CGRect(x: min(start.point.x, point.x), y: min(start.point.y, point.y),
+                         width: abs(point.x - start.point.x), height: abs(point.y - start.point.y))
+            .intersection(start.page.bounds(for: displayBox))
+        return box.isNull ? nil : (start.page, box)
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {

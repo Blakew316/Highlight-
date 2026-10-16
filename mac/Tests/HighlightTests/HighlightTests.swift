@@ -294,4 +294,35 @@ final class HighlightTests: XCTestCase {
         model.highlightAllMatches()
         XCTAssertEqual(model.library.passages.map(\.text), ["apple pie"])
     }
+
+    @MainActor
+    func testAreaHighlightCoversBlankSpaceAndReadsTextInside() throws {
+        let document = try makeTextPDF(lines: ["Principal #1", "Print Name: ____________", "Title: ____________", "Date: ____________"])
+        let model = makeModel()
+        model.setDocument(document, url: nil)
+        let page = try XCTUnwrap(document.page(at: 0))
+
+        // A box over the whole signature block, including the blank lines.
+        let box = CGRect(x: 60, y: 560, width: 420, height: 180)
+        XCTAssertTrue(model.highlightArea(box, on: page))
+        XCTAssertEqual(model.highlights.count, 1)
+        let text = model.highlights[0].text
+        for label in ["Principal", "Print Name", "Title", "Date"] {
+            XCTAssertTrue(text.contains(label), "missing \(label) in \(text)")
+        }
+
+        XCTAssertFalse(model.highlightArea(CGRect(x: 10, y: 10, width: 2, height: 2), on: page), "a plain click is not a highlight")
+        model.undoManager.undo()
+        XCTAssertEqual(model.highlights.count, 0)
+    }
+
+    @MainActor
+    func testAreaModeAndHighlighterModeAreExclusive() {
+        let model = makeModel()
+        model.highlighterMode = true
+        model.areaMode = true
+        XCTAssertFalse(model.highlighterMode)
+        model.highlighterMode = true
+        XCTAssertFalse(model.areaMode)
+    }
 }

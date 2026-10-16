@@ -80,6 +80,9 @@ struct HighlightCommands: Commands {
             Toggle("Highlighter Mode", isOn: $model.highlighterMode)
                 .keyboardShortcut("e")
                 .disabled(!hasDocument)
+            Toggle("Area Highlight Mode", isOn: $model.areaMode)
+                .keyboardShortcut("b", modifiers: [.command, .shift])
+                .disabled(!hasDocument)
             Divider()
             ForEach(HighlightColor.allCases) { option in
                 Toggle(option.name, isOn: Binding(
