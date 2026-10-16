@@ -69,6 +69,37 @@ Large PDFs open on page 1 right away while the rest load in the background. Page
 
 Libraries: [PDF.js](https://mozilla.github.io/pdf.js/) 3.11.174 renders pages and the selectable text layer, [pdf-lib](https://pdf-lib.js.org/) 1.17.1 writes the highlight annotations, and [JSZip](https://stuk.github.io/jszip/) 3.10.1 packs batches. Only PDF.js loads at startup: pdf-lib is fetched in the background once a PDF is open, and JSZip only when a batch needs it. The sample document is embedded (2 KB). The highlights list is built in chunks as you scroll, so documents with thousands of highlights stay responsive.
 
+## Chrome extension
+
+The same app as the website, built into Chrome, so you can highlight the PDF you're looking at in one click. It works offline: PDF.js, pdf-lib and JSZip ship inside the extension.
+
+### Install
+
+1. [**Download Highlight for Chrome**](https://cerulean-pegasus-4af782.netlify.app/downloads/Highlight-chrome.zip) (also the **Chrome** button on the website) and unzip it: on Windows, right-click it in your Downloads folder → **Extract All**. Keep the folder somewhere permanent, because Chrome loads it from there.
+2. Open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked**, and choose the unzipped folder.
+3. Pin it: click the puzzle-piece icon in the toolbar, then the pin next to Highlight.
+
+When it's installed, a Highlight tab opens by itself. If it doesn't:
+
+- **No Highlight tab and no card in `chrome://extensions`:** it wasn't loaded. Make sure **Developer mode** is on, and that the folder you pick in **Load unpacked** is the unzipped one with `manifest.json` directly inside it (not the `.zip` file, and not a folder above it).
+- **A card with a red Errors button:** click it and send me what it says.
+- **The card is there but there's no button in the toolbar:** Chrome hides new extensions behind the puzzle-piece icon. Click it, then the pin next to Highlight.
+- **"Developer mode" can't be turned on:** a work or school computer may block it; installing through the Chrome Web Store is the only option there.
+
+To update, download the new zip, replace the folder's contents, and click the reload arrow on Highlight's card in `chrome://extensions`. (It isn't on the Chrome Web Store, which is why it installs this way.)
+
+### Use it
+
+| Action | How |
+|---|---|
+| Highlight the PDF you're viewing | Click the Highlight button in the toolbar, or press **Alt+Shift+H** |
+| Highlight a PDF link without opening it | Right-click the link → **Open PDF in Highlight** |
+| Open Highlight on its own | Click the toolbar button on any page that isn't a PDF |
+
+The first time you open a PDF from a website, Highlight asks to read PDFs from that site. That's once per site. For PDFs on your computer (`file://` links), turn on **Allow access to file URLs** on Highlight's card in `chrome://extensions`. PDFs are read straight into the Highlight tab and never uploaded. Everything else works like the website, and your saved passages and form templates move between the extension, the website and the Mac app with **Export Library** / **Import Library**.
+
+Build it yourself with `./scripts/build-extension.sh` (needs Node and npm): it writes `build/chrome`, which you can load unpacked, and `build/Highlight-chrome.zip`. The extension page is `site/app.html` with its script moved into `app.js` and the libraries bundled, since Chrome extensions can't load code from a CDN. The extension's own files are in `extension/`.
+
 ## Mac app
 
 A native macOS app (SwiftUI + PDFKit, macOS 13 or newer, Apple Silicon and Intel). The highlights list stays pinned on the left.

@@ -18,6 +18,7 @@
   --accent-ink: #ffffff;
   --danger: #ff3b30;
   --bar: rgba(249, 249, 249, .78);
+  --bar-solid: #f9f9f9;     /* phones: opaque bars, so nothing shows through or fogs */
   --hud: rgba(28, 28, 30, .92);
   --hud-ink: #ffffff;
   --page-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 4px 18px rgba(0, 0, 0, .08);
@@ -33,7 +34,7 @@
     --fill: rgba(118, 118, 128, .24); --fill-strong: rgba(118, 118, 128, .32);
     --ink: #ffffff; --muted: rgba(235, 235, 245, .6); --line: rgba(84, 84, 88, .65);
     --accent: #0a84ff; --accent-ink: #ffffff; --danger: #ff453a;
-    --bar: rgba(29, 29, 31, .78); --hud: rgba(58, 58, 60, .94);
+    --bar: rgba(29, 29, 31, .78); --hud: rgba(58, 58, 60, .94); --bar-solid: #1d1d1f;
     --page-shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 6px 24px rgba(0, 0, 0, .5);
     --sheet-shadow: 0 -8px 40px rgba(0, 0, 0, .6);
     color-scheme: dark;
@@ -44,7 +45,7 @@
   --fill: rgba(118, 118, 128, .24); --fill-strong: rgba(118, 118, 128, .32);
   --ink: #ffffff; --muted: rgba(235, 235, 245, .6); --line: rgba(84, 84, 88, .65);
   --accent: #0a84ff; --accent-ink: #ffffff; --danger: #ff453a;
-  --bar: rgba(29, 29, 31, .78); --hud: rgba(58, 58, 60, .94);
+  --bar: rgba(29, 29, 31, .78); --hud: rgba(58, 58, 60, .94); --bar-solid: #1d1d1f;
   --page-shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 6px 24px rgba(0, 0, 0, .5);
   --sheet-shadow: 0 -8px 40px rgba(0, 0, 0, .6);
   color-scheme: dark;
@@ -52,6 +53,9 @@
 
 [hidden] { display: none !important; }
 html, body { height: 100%; }
+/* The area behind the status bar matches the top bar, so there is no seam above it. */
+html { background: var(--bar-solid); }
+.cap { display: none; }
 body {
   margin: 0; background: var(--desk); color: var(--ink);
   font-family: var(--font); font-size: 15px; line-height: 1.4; letter-spacing: -.01em;
@@ -412,9 +416,12 @@ dialog.form progress { width: 100%; height: 6px; accent-color: var(--accent); }
 
 /* ---------- phones ---------- */
 @media (max-width: 760px) {
-  :root { --toolbar-h: 56px; }
+  :root { --toolbar-h: 62px; }
   body { font-size: 16px; }
-  .bar { grid-template-columns: 64px minmax(0, 1fr) 64px; min-height: 48px; padding-block: 4px; gap: 4px; }
+  /* iOS 26 blurs whatever sits just under the status bar (Liquid Glass's scroll-edge
+     effect). The top bar is opaque and its contents sit lower, clear of that band. */
+  .bar { grid-template-columns: 72px minmax(0, 1fr) 72px; min-height: 60px; padding-block: 14px 8px; gap: 4px; }
+  .bar::before { background: var(--bar-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .title { flex-direction: column; justify-content: center; gap: 0; text-align: center; }
   .app-mark, .title .name { display: none; }
   .title .file { font-size: 17px; font-weight: 600; color: var(--ink); max-width: 100%; }
@@ -430,20 +437,26 @@ dialog.form progress { width: 100%; height: 6px; accent-color: var(--accent); }
     justify-content: space-around; gap: 0;
     height: calc(var(--toolbar-h) + env(safe-area-inset-bottom, 0px)); box-sizing: border-box;
     padding: 4px max(8px, env(safe-area-inset-left, 0px)) env(safe-area-inset-bottom, 0px) max(8px, env(safe-area-inset-right, 0px));
-    background: var(--bar);
-    -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+    background: var(--bar-solid);
     border-top: .5px solid var(--line);
   }
-  .tools > *, .tools .group { display: contents; }
-  .tools .btn { height: 48px; min-width: 48px; color: var(--accent); background: none; }
+  .tools .group { display: contents; }
+  /* iOS toolbar: an icon with its name underneath, so every button says what it does. */
+  .tools .btn {
+    flex-direction: column; gap: 3px; height: 56px; min-width: 56px; padding: 0 4px;
+    color: var(--accent); background: none; border-radius: 12px;
+  }
+  .tools .btn.icon { width: auto; }
   .tools .btn svg { width: 24px; height: 24px; }
-  .tools .btn.primary { width: 48px; padding: 0; border-radius: 12px; background: none; color: var(--accent); }
+  .tools .cap { display: block; font-size: 10.5px; font-weight: 500; letter-spacing: 0; line-height: 1; }
+  .tools .btn.primary { width: auto; padding: 0 4px; border-radius: 12px; background: none; color: var(--accent); }
   .tools .btn:disabled { opacity: .3; }
-  .tools #areaBtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-radius: 12px; }
+  .tools #areaBtn[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+  .tools .color-dot { width: 22px; height: 22px; }
   .swatch-group, .zoom-group, .sep, .hide-narrow, .txt, #modeBtn { display: none !important; }
   .narrow-only { display: inline-flex !important; }
   #sideBtn { position: relative; }
-  #sideCount { position: absolute; top: 6px; right: 2px; background: var(--accent); color: var(--accent-ink); }
+  #sideCount { position: absolute; top: 2px; right: 6px; background: var(--accent); color: var(--accent-ink); }
 
   .findbar { padding-block: 8px; }
   .search-field { flex-basis: 100%; max-width: none; order: -1; }
@@ -497,14 +510,17 @@ dialog.form progress { width: 100%; height: 6px; accent-color: var(--accent); }
     </button>
     <button class="btn icon narrow-only" id="colorBtn" aria-label="Highlight color" title="Highlight color">
       <span class="color-dot" id="colorDot"></span>
+      <span class="cap" aria-hidden="true">Color</span>
     </button>
     <button class="btn" id="areaBtn" aria-pressed="false" title="Highlight an area: drag a box over anything, such as signature lines, form fields or scanned text (B)">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 2.2" aria-hidden="true"><rect x="3" y="4.5" width="14" height="11" rx="1.5"/></svg>
       <span class="txt">Area</span>
+      <span class="cap" aria-hidden="true">Area</span>
     </button>
     <div class="sep"></div>
     <button class="btn icon" id="findBtn" aria-label="Find in PDF" title="Find (⌘F)">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4.5 4.5"/></svg>
+      <span class="cap" aria-hidden="true">Find</span>
     </button>
     <div class="group zoom-group">
       <button class="btn icon" id="zoomOut" aria-label="Zoom out" title="Zoom out">
@@ -519,18 +535,25 @@ dialog.form progress { width: 100%; height: 6px; accent-color: var(--accent); }
     <div class="group">
       <button class="btn icon" id="undoBtn" aria-label="Undo" title="Undo (⌘Z)">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4.5L3.5 8 7 11.5"/><path d="M3.5 8H12a4.5 4.5 0 0 1 0 9H9"/></svg>
+        <span class="cap" aria-hidden="true">Undo</span>
       </button>
       <button class="btn" id="sideBtn" aria-expanded="true" aria-controls="side" aria-label="Highlights" title="Highlights">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M7.5 5.5h9M7.5 10h9M7.5 14.5h9"/><circle cx="4" cy="5.5" r=".9" fill="currentColor" stroke="none"/><circle cx="4" cy="10" r=".9" fill="currentColor" stroke="none"/><circle cx="4" cy="14.5" r=".9" fill="currentColor" stroke="none"/></svg>
         <span id="sideCount">0</span>
+        <span class="cap" aria-hidden="true">Highlights</span>
       </button>
       <a class="btn hide-narrow" id="macLink" href="https://github.com/Blakew316/Highlight-/releases/latest/download/Highlight-mac.zip" target="_blank" rel="noopener" title="Download the native Highlight app for macOS 13 or newer">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7.5 17h5M10 13.5V17"/></svg>
         <span class="txt">Mac app</span>
       </a>
+      <a class="btn hide-narrow" id="chromeLink" href="https://cerulean-pegasus-4af782.netlify.app/downloads/Highlight-chrome.zip" title="Download Highlight for Chrome (unzip, then Load unpacked in chrome://extensions)">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><circle cx="10" cy="10" r="3"/><path d="M10 7h7M7.4 11.5L3.9 5.4M12.6 11.5l-3.5 6"/></svg>
+        <span class="txt">Chrome</span>
+      </a>
       <button class="btn primary" id="saveBtn" aria-label="Download PDF" title="Download PDF (⌘S)">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v9.5M6 9l4 4 4-4M4 16.5h12"/></svg>
         <span class="txt">Download</span>
+        <span class="cap" aria-hidden="true">Save</span>
       </button>
     </div>
   </nav>
@@ -2659,17 +2682,95 @@ function bind() {
   window.addEventListener("beforeunload", (e) => { if (S.dirty && !S.sample) { e.preventDefault(); e.returnValue = ""; } });
 }
 
+/* ---------- Chrome extension: open a PDF from a web page ---------- */
+/* In the extension, app.html?src=<url> opens that PDF (from the toolbar button or
+   the right-click menu). Reading another site needs the user's OK for that site,
+   asked once, from a banner. Nothing is uploaded: the PDF is fetched straight
+   into this tab. */
+const IS_EXTENSION = !!(window.chrome && chrome.runtime && chrome.runtime.id);
+function pdfNameFromUrl(url) {
+  let name = "";
+  try { name = decodeURIComponent(url.pathname.split("/").pop() || ""); } catch {}
+  name = name.replace(/[\\/:*?"<>|]+/g, " ").trim() || "document";
+  return /\.pdf$/i.test(name) ? name : `${name}.pdf`;
+}
+async function canRead(url) {
+  if (url.protocol === "file:") return chrome.extension.isAllowedFileSchemeAccess();
+  try { return await chrome.permissions.contains({ origins: [`${url.origin}/*`] }); } catch { return false; }
+}
+/* Returns "opened", "needs-access" or "failed". */
+async function openFromUrl(src) {
+  let url;
+  try { url = new URL(src); } catch { return "failed"; }
+  if (!/^(https?|file):$/.test(url.protocol)) return "failed";
+  if (!(await canRead(url))) return "needs-access";
+  const name = pdfNameFromUrl(url);
+  toast(`Opening “${name}”…`, 15000);
+  try {
+    const res = await fetch(url.href, { credentials: "include" });
+    if (!res.ok) throw new Error(`The site answered ${res.status}.`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    // %PDF- may follow a little junk; PDF readers accept it within the first 1 KB.
+    const head = new TextDecoder("latin1").decode(bytes.subarray(0, 1024));
+    if (!head.includes("%PDF-")) throw new Error("That link isn’t a PDF.");
+    await openBytes(bytes, name, false);
+    els.toast.hidden = true;
+    return S.pdf ? "opened" : "failed";
+  } catch (e) {
+    const shown = decodeURIComponent(url.pathname.split("/").pop() || "") || url.host;
+    toast(`Couldn’t open “${shown}”. ${e && e.message ? e.message : ""}`.trim(), 7000);
+    return "failed";
+  }
+}
+function accessBanner(src) {
+  const url = new URL(src);
+  const name = pdfNameFromUrl(url);
+  let d;
+  const file = url.protocol === "file:";
+  const go = file
+    ? bannerButton("Open Extension Settings", true, () => chrome.tabs.create({ url: `chrome://extensions/?id=${chrome.runtime.id}` }))
+    : bannerButton("Allow", true, async () => {
+        let ok = false;
+        try { ok = await chrome.permissions.request({ origins: [`${url.origin}/*`] }); } catch {}
+        if (!ok) return;
+        d.remove();
+        if ((await openFromUrl(src)) === "opened") history.replaceState(null, "", location.pathname);
+      });
+  d = makeBanner({ id: "accessBanner", icon: "doc", title: `Open “${name}”?`,
+    text: file ? "Turn on “Allow access to file URLs” for Highlight, then click the Highlight button again."
+               : `Highlight needs your OK to read PDFs from ${url.host}. You only need to allow each site once.`,
+    actions: [go], dismiss: true });
+  return d;
+}
+
 async function start() {
   bind();
+  if (IS_EXTENSION) $("chromeLink").remove(); // already installed
   setSide(!isNarrow());
   setColor(S.color);
   updateUI(); renderSidebar();
+  const src = IS_EXTENSION ? new URLSearchParams(location.search).get("src") : null;
+  if (src) {
+    const result = await openFromUrl(src);
+    if (result === "opened") { history.replaceState(null, "", location.pathname); return; }
+    if (result === "needs-access") {
+      // Show something behind the banner: the last file, or the sample.
+      const recent = (await recentList())[0];
+      if (recent) { try { await openBytes(recent.bytes, recent.name, false); } catch (e) { console.error(e); } }
+      if (!S.pdf) await openSample();
+      els.pages.prepend(accessBanner(src));
+      return;
+    }
+  }
   // Pick up where you left off: reopen the most recent file (its unsaved
   // highlights come back via the auto-save).
   const recent = (await recentList())[0];
   if (recent) {
     try { await openBytes(recent.bytes, recent.name, false); if (S.pdf) return; } catch (e) { console.error(e); }
   }
+  await openSample();
+}
+async function openSample() {
   try {
     const { bytes, seeds } = makeSample();
     await openBytes(bytes, "How to read a paper.pdf", true);
@@ -2682,6 +2783,18 @@ async function start() {
     toast("Open a PDF to start highlighting.");
   }
 }
-start();
+/* Chrome extension, first run: say it worked and how to keep the button in sight. */
+async function welcomeBanner() {
+  if (!IS_EXTENSION || !new URLSearchParams(location.search).has("welcome")) return;
+  history.replaceState(null, "", location.pathname);
+  let pinned = false;
+  try { pinned = (await chrome.action.getUserSettings()).isOnToolbar; } catch {}
+  els.pages.prepend(makeBanner({ id: "welcomeBanner", icon: "mark", title: "Highlight is installed.",
+    text: pinned
+      ? "On any PDF in Chrome, click the Highlight button in the toolbar (or press Alt+Shift+H) to highlight it here."
+      : "To keep it in your toolbar, click the puzzle-piece icon at the top right of Chrome, then the pin next to Highlight. On any PDF, click that button (or press Alt+Shift+H) to highlight it here.",
+    dismiss: true }));
+}
+start().then(welcomeBanner);
 })();
 </script>
