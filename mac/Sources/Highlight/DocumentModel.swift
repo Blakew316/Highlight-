@@ -9,10 +9,27 @@ struct HighlightItem: Identifiable {
     let pageNumber: Int
     let text: String
     let color: NSColor
+    /// The palette color closest to `color`, for filtering the list.
+    let paletteColor: HighlightColor
 
     var id: ObjectIdentifier { ObjectIdentifier(members[0].annotation) }
     var page: PDFPage { members[0].page }
     var firstAnnotation: PDFAnnotation { members[0].annotation }
+}
+
+/// One find result. Matches in the text layer carry a selection; matches in
+/// recognized (OCR) text on scanned pages carry only their line boxes.
+struct FindMatch {
+    let page: PDFPage
+    let selection: PDFSelection?
+    let lines: [CGRect]
+}
+
+/// Progress of a long-running job (text recognition, a batch).
+struct JobProgress: Equatable {
+    var done: Int
+    var total: Int
+    var fraction: Double { total == 0 ? 0 : Double(done) / Double(total) }
 }
 
 enum SaveError: LocalizedError {
@@ -40,7 +57,7 @@ final class DocumentModel: ObservableObject {
     @Published var color: HighlightColor = .yellow
     /// Saved passages found in the just-opened PDF, waiting for the user to accept (Ask mode).
     @Published private(set) var pendingSavedMatches: [PlacedAnnotation] = []
-    @Published private(set) var findResults: [PDFSelection] = []
+    @Published private(set) var findResults: [FindMatch] = []
     @Published private(set) var findIndex = 0
     @Published var highlighterMode = false {
         didSet {
@@ -57,6 +74,32 @@ final class DocumentModel: ObservableObject {
     }
     /// The live box shown while dragging in area mode (not part of the document's undo history).
     private var areaPreview: PlacedAnnotation?
+    /// Boxes marking find matches in recognized text. Never saved: they're taken
+    /// off the pages around every write.
+    private var findMarkers: [PlacedAnnotation] = []
+
+    /// The form template found in the just-opened PDF, when waiting for the user (Ask mode).
+    @Published var pendingTemplateName: String?
+    /// The highlight selected in the sidebar or by Next/Previous Highlight.
+    @Published var selectedHighlightID: ObjectIdentifier? {
+        didSet {
+            guard let selectedHighlightID, selectedHighlightID != oldValue,
+                  let item = highlights.first(where: { $0.id == selectedHighlightID }) else { return }
+            reveal(item)
+        }
+    }
+    /// Shows only highlights of one color in the list (nil shows all).
+    @Published var colorFilter: HighlightColor?
+    /// Words recognized on scanned pages, by page index.
+    @Published var ocrWords: [Int: [OCRWord]] = [:]
+    /// Set while scanned pages are being read.
+    @Published var ocrProgress: JobProgress?
+    var ocrTask: Task<Void, Never>?
+    /// Set while a batch of PDFs is being highlighted.
+    @Published var batchProgress: JobProgress?
+    var batchTask: Task<Void, Never>?
+    /// Shows the "Highlight Phrases" sheet.
+    @Published var showingPhraseSheet = false
 
     let undoManager = UndoManager()
     let pdfView = HighlightPDFView()
@@ -74,7 +117,7 @@ final class DocumentModel: ObservableObject {
 
     /// Text under each annotation, read once. Reading it means a text-layout
     /// query per line, which made every edit slow once there were hundreds.
-    private var textCache: [ObjectIdentifier: String] = [:]
+    var textCache: [ObjectIdentifier: String] = [:]
 
     init(library: PassageLibrary? = nil, defaults: UserDefaults = .standard) {
         self.library = library ?? PassageLibrary()
@@ -168,16 +211,24 @@ final class DocumentModel: ObservableObject {
         setDocument(doc, url: url)
         noteRecent(url)
         checkSavedPassages()
+        startRecognizingText()
     }
 
     /// Replaces the current document and resets undo/dirty state.
     func setDocument(_ doc: PDFDocument?, url: URL?) {
+        clearFind()
+        ocrTask?.cancel()
+        ocrTask = nil
+        ocrProgress = nil
+        ocrWords = [:]
+        pendingTemplateName = nil
+        selectedHighlightID = nil
+        colorFilter = nil
         document = doc
         fileURL = url
         pdfView.document = doc
         textCache = [:]
         pendingSavedMatches = []
-        clearFind()
         undoManager.removeAllActions()
         isDirty = false
         refreshHighlights()
@@ -225,7 +276,7 @@ final class DocumentModel: ObservableObject {
                                  appropriateFor: url.deletingLastPathComponent(), create: true)
         defer { try? fm.removeItem(at: tempDir) }
         let tempURL = tempDir.appendingPathComponent(url.lastPathComponent)
-        guard document.write(to: tempURL) else { throw SaveError.writeFailed }
+        guard withoutFindMarkers({ document.write(to: tempURL) }) else { throw SaveError.writeFailed }
         if fm.fileExists(atPath: url.path) {
             _ = try fm.replaceItemAt(url, withItemAt: tempURL)
         } else {
@@ -374,16 +425,42 @@ final class DocumentModel: ObservableObject {
 
     // MARK: - Find
 
-    /// Searches the document (case-insensitive) and shows the first match.
+    /// Searches the document (case-insensitive), including text recognized on
+    /// scanned pages, and shows the first match.
     func find(_ query: String) {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let document, q.count >= 2 else { return clearFind() }
+        clearFind()
         lastFindQuery = q
-        let results = document.findString(q, withOptions: [.caseInsensitive])
-        for result in results { result.color = NSColor.findHighlightColor }
-        findResults = results
+        var matches: [(index: Int, match: FindMatch)] = []
+        for selection in document.findString(q, withOptions: [.caseInsensitive]) {
+            guard let page = selection.pages.first else { continue }
+            selection.color = NSColor.findHighlightColor
+            matches.append((document.index(for: page), FindMatch(page: page, selection: selection, lines: [])))
+        }
+        for (index, words) in ocrWords {
+            guard let page = document.page(at: index) else { continue }
+            for lines in Matcher.ocrOccurrences(of: q, words: words) {
+                matches.append((index, FindMatch(page: page, selection: nil, lines: lines)))
+            }
+        }
+        // Page order; within a page the text layer's order (OCR pages have no text layer).
+        let ordered = matches.enumerated().sorted { ($0.element.index, $0.offset) < ($1.element.index, $1.offset) }.map(\.element.match)
+        for match in ordered where match.selection == nil {
+            for line in match.lines {
+                let marker = PDFAnnotation(bounds: line.insetBy(dx: -1, dy: -1), forType: .square, withProperties: nil)
+                marker.color = .clear
+                marker.interiorColor = NSColor.findHighlightColor.withAlphaComponent(0.45)
+                marker.border = PDFBorder()
+                marker.border?.lineWidth = 0
+                match.page.addAnnotation(marker)
+                findMarkers.append(PlacedAnnotation(annotation: marker, page: match.page))
+            }
+            pdfView.annotationsChanged(on: match.page)
+        }
+        findResults = ordered
         findIndex = 0
-        pdfView.highlightedSelections = results
+        pdfView.highlightedSelections = ordered.compactMap(\.selection)
         showCurrentMatch()
     }
 
@@ -391,18 +468,32 @@ final class DocumentModel: ObservableObject {
     func findPrevious() { stepFind(-1) }
 
     func clearFind() {
+        for marker in findMarkers { marker.page.removeAnnotation(marker.annotation) }
+        for page in Set(findMarkers.map(\.page)) { pdfView.annotationsChanged(on: page) }
+        findMarkers = []
         findResults = []
         findIndex = 0
         pdfView.highlightedSelections = nil
     }
 
+    /// Runs `body` with the find markers taken off their pages, so they're never
+    /// written to a file or copied.
+    func withoutFindMarkers<T>(_ body: () throws -> T) rethrows -> T {
+        for marker in findMarkers { marker.page.removeAnnotation(marker.annotation) }
+        defer { for marker in findMarkers { marker.page.addAnnotation(marker.annotation) } }
+        return try body()
+    }
+
     /// Turns every search match into a highlight in the current color (one undo step).
     func highlightAllMatches() {
-        let placed = findResults.flatMap { Highlighter.makeAnnotations(for: $0, color: color.nsColor) }
+        let placed = findResults.flatMap { match -> [PlacedAnnotation] in
+            if let selection = match.selection { return Highlighter.makeAnnotations(for: selection, color: color.nsColor) }
+            return [PlacedAnnotation(annotation: Highlighter.makeAnnotation(lines: match.lines, color: color.nsColor), page: match.page)]
+        }
         guard !placed.isEmpty else { return }
+        clearFind()
         add(placed, actionName: "Highlight All Matches")
         library.remember(lastFindQuery, color: color)
-        clearFind()
     }
 
     private func stepFind(_ delta: Int) {
@@ -414,8 +505,13 @@ final class DocumentModel: ObservableObject {
     private func showCurrentMatch() {
         guard findResults.indices.contains(findIndex) else { return }
         let match = findResults[findIndex]
-        pdfView.setCurrentSelection(match, animate: true)
-        pdfView.scrollSelectionToVisible(nil)
+        if let selection = match.selection {
+            pdfView.setCurrentSelection(selection, animate: true)
+            pdfView.scrollSelectionToVisible(nil)
+        } else if let first = match.lines.first {
+            pdfView.clearSelection()
+            pdfView.go(to: match.lines.dropFirst().reduce(first) { $0.union($1) }, on: match.page)
+        }
     }
 
     // MARK: - Saved passages
@@ -425,63 +521,84 @@ final class DocumentModel: ObservableObject {
         Set(pendingSavedMatches.map { Highlighter.groupKey(of: $0.annotation) }).count
     }
 
-    /// Looks for saved passages in the open PDF and, per the library's mode,
-    /// highlights them or holds them for the user to accept.
+    /// Looks for a matching form template and saved passages in the open PDF and,
+    /// per the library's mode, highlights them or holds them for the user to accept.
     func checkSavedPassages() {
         pendingSavedMatches = []
-        guard library.mode != .off else { return }
-        let found = findSavedPassages()
+        pendingTemplateName = nil
+        guard library.mode != .off, let document else { return }
+        var found: [PlacedAnnotation] = []
+        var templateName: String?
+        if let template = library.templates.first(where: { Matcher.matches($0, document) }) {
+            found = Matcher.templateAnnotations(template, in: document)
+            if !found.isEmpty { templateName = template.name }
+        }
+        found += Matcher.phraseAnnotations(in: document, phrases: savedPhrases, ocr: ocrWords,
+                                           alsoTaken: rectsByPage(found))
+        guard !found.isEmpty else { return }
+        if library.mode == .always {
+            add(found, actionName: templateName == nil ? "Highlight Saved Passages" : "Apply Form Template")
+        } else {
+            pendingSavedMatches = found
+            pendingTemplateName = templateName
+        }
+    }
+
+    /// Adds saved passages found in newly recognized pages to what's offered or highlighted.
+    func checkSavedPassages(onPages pages: Set<Int>) {
+        guard library.mode != .off, let document, !library.passages.isEmpty else { return }
+        let found = Matcher.phraseAnnotations(in: document, phrases: savedPhrases, ocr: ocrWords, pages: pages,
+                                              alsoTaken: rectsByPage(pendingSavedMatches))
         guard !found.isEmpty else { return }
         if library.mode == .always {
             add(found, actionName: "Highlight Saved Passages")
         } else {
-            pendingSavedMatches = found
+            pendingSavedMatches += found
         }
     }
 
     func applyPendingSavedMatches() {
         let found = pendingSavedMatches
+        let fromTemplate = pendingTemplateName != nil
         pendingSavedMatches = []
+        pendingTemplateName = nil
         guard !found.isEmpty else { return }
-        add(found, actionName: "Highlight Saved Passages")
+        add(found, actionName: fromTemplate ? "Apply Form Template" : "Highlight Saved Passages")
     }
 
-    func dismissPendingSavedMatches() { pendingSavedMatches = [] }
+    func dismissPendingSavedMatches() {
+        pendingSavedMatches = []
+        pendingTemplateName = nil
+    }
 
     /// Highlights saved passages in the open PDF on request, whatever the mode.
     func highlightSavedPassagesNow() {
-        pendingSavedMatches = []
+        dismissPendingSavedMatches()
         let found = findSavedPassages()
         guard !found.isEmpty else {
             showInfo(title: "No saved passages found",
-                     message: "None of the passages you’ve highlighted before appear in this PDF.")
+                     message: "None of the passages you’ve highlighted before appear in this PDF, or they’re already highlighted.")
             return
         }
         add(found, actionName: "Highlight Saved Passages")
     }
 
-    /// Annotations for every saved passage in the document that isn't already
-    /// highlighted. Longer passages are placed first so a sentence wins over a
-    /// phrase inside it.
+    var savedPhrases: [PhraseRequest] {
+        library.passages.map { PhraseRequest(text: $0.text, color: $0.color.nsColor) }
+    }
+
+    /// Annotations for every saved passage in the document that isn't already highlighted.
     func findSavedPassages() -> [PlacedAnnotation] {
         guard let document, !library.passages.isEmpty else { return [] }
-        let passages = library.passages.sorted { $0.text.count > $1.text.count }
-        var result: [PlacedAnnotation] = []
-        for index in 0..<document.pageCount {
-            guard let page = document.page(at: index) else { continue }
-            var taken = page.annotations.filter(Highlighter.isHighlight).flatMap(Highlighter.lineRects)
-            for passage in passages {
-                for range in Highlighter.occurrences(of: passage.text, on: page) {
-                    guard let selection = page.selection(for: range) else { continue }
-                    let placed = Highlighter.makeAnnotations(for: selection, color: passage.color.nsColor)
-                    let rects = placed.flatMap { Highlighter.lineRects(of: $0.annotation) }.map { $0.insetBy(dx: 1, dy: 1) }
-                    guard !placed.isEmpty,
-                          !rects.contains(where: { rect in taken.contains { $0.intersects(rect) } })
-                    else { continue }
-                    taken.append(contentsOf: rects)
-                    result.append(contentsOf: placed)
-                }
-            }
+        return Matcher.phraseAnnotations(in: document, phrases: savedPhrases, ocr: ocrWords)
+    }
+
+    /// The line boxes of `items`, by page index, so matching can avoid them.
+    func rectsByPage(_ items: [PlacedAnnotation]) -> [Int: [CGRect]] {
+        guard let document else { return [:] }
+        var result: [Int: [CGRect]] = [:]
+        for item in items {
+            result[document.index(for: item.page), default: []] += Highlighter.lineRects(of: item.annotation)
         }
         return result
     }
@@ -498,7 +615,7 @@ final class DocumentModel: ObservableObject {
 
     // MARK: - Undoable primitives
 
-    private func add(_ items: [PlacedAnnotation], actionName: String) {
+    func add(_ items: [PlacedAnnotation], actionName: String) {
         for item in items { item.page.addAnnotation(item.annotation) }
         registerUndo(actionName) { $0.remove(items, actionName: actionName) }
         didChange(items)
@@ -558,17 +675,24 @@ final class DocumentModel: ObservableObject {
                     let id = ObjectIdentifier(annotation)
                     liveKeys.insert(id)
                     if let cached = textCache[id] { return cached }
-                    let read = Highlighter.text(of: annotation, on: page)
+                    var read = Highlighter.text(of: annotation, on: page)
+                    if read.isEmpty, let words = ocrWords[index] {
+                        read = OCR.text(in: Highlighter.lineRects(of: annotation), words: words)
+                    }
                     textCache[id] = read
                     return read
                 }.filter { !$0.isEmpty }.joined(separator: " ")
                 items.append(HighlightItem(members: lines.map { PlacedAnnotation(annotation: $0, page: page) },
-                                           pageNumber: index + 1, text: text, color: lines[0].color))
+                                           pageNumber: index + 1, text: text, color: lines[0].color,
+                                           paletteColor: HighlightColor.nearest(to: lines[0].color)))
             }
         }
         // Drop entries for annotations that are gone, so a recycled identifier never shows stale text.
         textCache = textCache.filter { liveKeys.contains($0.key) }
         highlights = items
+        if let selectedHighlightID, !items.contains(where: { $0.id == selectedHighlightID }) {
+            self.selectedHighlightID = nil
+        }
     }
 
     /// Every line of the highlight that `annotation` belongs to.
@@ -628,7 +752,7 @@ final class DocumentModel: ObservableObject {
 
     // MARK: - Errors
 
-    private func showInfo(title: String, message: String) {
+    func showInfo(title: String, message: String) {
         let alert = NSAlert()
         alert.alertStyle = .informational
         alert.messageText = title
@@ -636,7 +760,7 @@ final class DocumentModel: ObservableObject {
         alert.runModal()
     }
 
-    private func showError(title: String, message: String) {
+    func showError(title: String, message: String) {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = title
