@@ -2698,17 +2698,94 @@ function bind() {
   window.addEventListener("beforeunload", (e) => { if (S.dirty && !S.sample) { e.preventDefault(); e.returnValue = ""; } });
 }
 
+/* ---------- Chrome extension: open a PDF from a web page ---------- */
+/* In the extension, app.html?src=<url> opens that PDF (from the toolbar button or
+   the right-click menu). Reading another site needs the user's OK for that site,
+   asked once, from a banner. Nothing is uploaded: the PDF is fetched straight
+   into this tab. */
+const IS_EXTENSION = !!(window.chrome && chrome.runtime && chrome.runtime.id);
+function pdfNameFromUrl(url) {
+  let name = "";
+  try { name = decodeURIComponent(url.pathname.split("/").pop() || ""); } catch {}
+  name = name.replace(/[\\/:*?"<>|]+/g, " ").trim() || "document";
+  return /\.pdf$/i.test(name) ? name : `${name}.pdf`;
+}
+async function canRead(url) {
+  if (url.protocol === "file:") return chrome.extension.isAllowedFileSchemeAccess();
+  try { return await chrome.permissions.contains({ origins: [`${url.origin}/*`] }); } catch { return false; }
+}
+/* Returns "opened", "needs-access" or "failed". */
+async function openFromUrl(src) {
+  let url;
+  try { url = new URL(src); } catch { return "failed"; }
+  if (!/^(https?|file):$/.test(url.protocol)) return "failed";
+  if (!(await canRead(url))) return "needs-access";
+  const name = pdfNameFromUrl(url);
+  toast(`Opening “${name}”…`, 15000);
+  try {
+    const res = await fetch(url.href, { credentials: "include" });
+    if (!res.ok) throw new Error(`The site answered ${res.status}.`);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    // %PDF- may follow a little junk; PDF readers accept it within the first 1 KB.
+    const head = new TextDecoder("latin1").decode(bytes.subarray(0, 1024));
+    if (!head.includes("%PDF-")) throw new Error("That link isn’t a PDF.");
+    await openBytes(bytes, name, false);
+    els.toast.hidden = true;
+    return S.pdf ? "opened" : "failed";
+  } catch (e) {
+    const shown = decodeURIComponent(url.pathname.split("/").pop() || "") || url.host;
+    toast(`Couldn’t open “${shown}”. ${e && e.message ? e.message : ""}`.trim(), 7000);
+    return "failed";
+  }
+}
+function accessBanner(src) {
+  const url = new URL(src);
+  const name = pdfNameFromUrl(url);
+  let d;
+  const file = url.protocol === "file:";
+  const go = file
+    ? bannerButton("Open Extension Settings", true, () => chrome.tabs.create({ url: `chrome://extensions/?id=${chrome.runtime.id}` }))
+    : bannerButton("Allow", true, async () => {
+        let ok = false;
+        try { ok = await chrome.permissions.request({ origins: [`${url.origin}/*`] }); } catch {}
+        if (!ok) return;
+        d.remove();
+        if ((await openFromUrl(src)) === "opened") history.replaceState(null, "", location.pathname);
+      });
+  d = makeBanner({ id: "accessBanner", icon: "doc", title: `Open “${name}”?`,
+    text: file ? "Turn on “Allow access to file URLs” for Highlight, then click the Highlight button again."
+               : `Highlight needs your OK to read PDFs from ${url.host}. You only need to allow each site once.`,
+    actions: [go], dismiss: true });
+  return d;
+}
+
 async function start() {
   bind();
   setSide(!isNarrow());
   setColor(S.color);
   updateUI(); renderSidebar();
+  const src = IS_EXTENSION ? new URLSearchParams(location.search).get("src") : null;
+  if (src) {
+    const result = await openFromUrl(src);
+    if (result === "opened") { history.replaceState(null, "", location.pathname); return; }
+    if (result === "needs-access") {
+      // Show something behind the banner: the last file, or the sample.
+      const recent = (await recentList())[0];
+      if (recent) { try { await openBytes(recent.bytes, recent.name, false); } catch (e) { console.error(e); } }
+      if (!S.pdf) await openSample();
+      els.pages.prepend(accessBanner(src));
+      return;
+    }
+  }
   // Pick up where you left off: reopen the most recent file (its unsaved
   // highlights come back via the auto-save).
   const recent = (await recentList())[0];
   if (recent) {
     try { await openBytes(recent.bytes, recent.name, false); if (S.pdf) return; } catch (e) { console.error(e); }
   }
+  await openSample();
+}
+async function openSample() {
   try {
     const { bytes, seeds } = makeSample();
     await openBytes(bytes, "How to read a paper.pdf", true);

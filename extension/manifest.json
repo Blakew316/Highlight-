@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Highlight: PDF Highlighter",
+  "short_name": "Highlight",
+  "version": "1.0.0",
+  "description": "Highlight PDFs in Chrome. Saved passages, form templates and batches, saved as standard PDF highlights. Your files stay on your computer.",
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "action": {
+    "default_title": "Highlight this PDF",
+    "default_icon": { "16": "icons/16.png", "32": "icons/32.png" }
+  },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["contextMenus"],
+  "optional_host_permissions": ["<all_urls>"],
+  "commands": {
+    "_execute_action": { "suggested_key": { "default": "Alt+Shift+H" }, "description": "Open the current PDF in Highlight" }
+  },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" }
+}

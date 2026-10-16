@@ -5,3 +5,4 @@ mac/.build/
 mac/.swiftpm/
 mac/build/
 *.app
+build/
