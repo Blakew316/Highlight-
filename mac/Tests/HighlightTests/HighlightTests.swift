@@ -4,9 +4,24 @@ import XCTest
 @testable import Highlight
 
 final class HighlightTests: XCTestCase {
+    /// A model whose saved-passage library lives in a throwaway defaults suite,
+    /// so tests never touch the real app's settings.
+    @MainActor
+    private func makeModel(mode: AutoHighlightMode = .ask) -> DocumentModel {
+        let defaults = UserDefaults(suiteName: "HighlightTests-\(UUID().uuidString)")!
+        let library = PassageLibrary(defaults: defaults)
+        library.mode = mode
+        return DocumentModel(library: library)
+    }
+
     /// A one-page PDF containing real text, so PDFKit selections work.
     @MainActor
     private func makeTextPDF(_ text: String = "Hello highlight world") throws -> PDFDocument {
+        try makeTextPDF(lines: [text])
+    }
+
+    @MainActor
+    private func makeTextPDF(lines: [String]) throws -> PDFDocument {
         let data = NSMutableData()
         var box = CGRect(x: 0, y: 0, width: 612, height: 792)
         let consumer = try XCTUnwrap(CGDataConsumer(data: data as CFMutableData))
@@ -14,8 +29,10 @@ final class HighlightTests: XCTestCase {
         context.beginPDFPage(nil)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
-        NSAttributedString(string: text, attributes: [.font: NSFont.systemFont(ofSize: 24)])
-            .draw(at: NSPoint(x: 72, y: 700))
+        for (index, line) in lines.enumerated() {
+            NSAttributedString(string: line, attributes: [.font: NSFont.systemFont(ofSize: 24)])
+                .draw(at: NSPoint(x: 72, y: 700 - CGFloat(index) * 40))
+        }
         NSGraphicsContext.restoreGraphicsState()
         context.endPDFPage()
         context.closePDF()
@@ -59,7 +76,7 @@ final class HighlightTests: XCTestCase {
     @MainActor
     func testHighlightSelectionThenUndoRedo() throws {
         let document = try makeTextPDF()
-        let model = DocumentModel()
+        let model = makeModel()
         model.setDocument(document, url: nil)
         let page = try XCTUnwrap(document.page(at: 0))
         let selection = try XCTUnwrap(page.selection(for: NSRange(location: 0, length: 5)))
@@ -80,7 +97,7 @@ final class HighlightTests: XCTestCase {
     @MainActor
     func testRemoveHighlightsInSelection() throws {
         let document = try makeTextPDF()
-        let model = DocumentModel()
+        let model = makeModel()
         model.setDocument(document, url: nil)
         let page = try XCTUnwrap(document.page(at: 0))
         try model.highlight(XCTUnwrap(page.selection(for: NSRange(location: 0, length: 5))))
@@ -95,13 +112,13 @@ final class HighlightTests: XCTestCase {
     @MainActor
     func testRecolorIsUndoable() throws {
         let document = try makeTextPDF()
-        let model = DocumentModel()
+        let model = makeModel()
         model.setDocument(document, url: nil)
         let page = try XCTUnwrap(document.page(at: 0))
         model.color = .yellow
         try model.highlight(XCTUnwrap(page.selection(for: NSRange(location: 0, length: 5))))
 
-        model.recolor([model.highlights[0].placed], to: .blue)
+        model.recolor(model.highlights[0].members, to: .blue)
         assertSameColor(model.highlights[0].color, HighlightColor.blue.nsColor)
         model.undoManager.undo()
         assertSameColor(model.highlights[0].color, HighlightColor.yellow.nsColor)
@@ -110,7 +127,7 @@ final class HighlightTests: XCTestCase {
     @MainActor
     func testSaveRoundTripKeepsHighlights() throws {
         let document = try makeTextPDF()
-        let model = DocumentModel()
+        let model = makeModel()
         model.setDocument(document, url: nil)
         let page = try XCTUnwrap(document.page(at: 0))
         try model.highlight(XCTUnwrap(page.selection(for: NSRange(location: 0, length: 5))))
@@ -124,5 +141,157 @@ final class HighlightTests: XCTestCase {
         try model.write(to: url)      // overwrite existing file
         let reloaded = try XCTUnwrap(PDFDocument(url: url))
         XCTAssertEqual(highlightCount(reloaded), 1)
+    }
+
+    @MainActor
+    func testMultiLineHighlightIsOneEntryAndSurvivesSave() throws {
+        let document = try makeTextPDF(lines: ["First line of text", "Second line of text"])
+        let model = makeModel()
+        model.setDocument(document, url: nil)
+        let page = try XCTUnwrap(document.page(at: 0))
+        let all = try XCTUnwrap(page.string)
+        try model.highlight(XCTUnwrap(page.selection(for: NSRange(location: 0, length: all.count))))
+
+        XCTAssertEqual(highlightCount(document), 1, "one annotation for the whole highlight")
+        let annotation = try XCTUnwrap(page.annotations.first(where: Highlighter.isHighlight))
+        XCTAssertEqual(Highlighter.lineRects(of: annotation).count, 2, "with one quad per line")
+        XCTAssertEqual(model.highlights.count, 1)
+        XCTAssertTrue(model.highlights[0].text.contains("First"), model.highlights[0].text)
+        XCTAssertTrue(model.highlights[0].text.contains("Second"), model.highlights[0].text)
+
+        model.removeHighlights(model.highlights[0].members)
+        XCTAssertEqual(highlightCount(document), 0, "removing the entry removes the whole highlight")
+        model.undoManager.undo()
+
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("lines.pdf")
+        try model.write(to: url)
+
+        let reopened = makeModel()
+        reopened.setDocument(try XCTUnwrap(PDFDocument(url: url)), url: url)
+        XCTAssertEqual(reopened.highlights.count, 1, "still one highlight after saving")
+        let saved = try XCTUnwrap(reopened.document?.page(at: 0)?.annotations.first(where: Highlighter.isHighlight))
+        XCTAssertEqual(Highlighter.lineRects(of: saved).count, 2, "quads survive saving")
+        XCTAssertTrue(reopened.highlights[0].text.contains("Second"), reopened.highlights[0].text)
+    }
+
+    @MainActor
+    func testFindAndHighlightAllMatches() throws {
+        let document = try makeTextPDF(lines: ["apple pie", "banana", "apple tart"])
+        let model = makeModel()
+        model.setDocument(document, url: nil)
+
+        model.find("APPLE")
+        XCTAssertEqual(model.findResults.count, 2)
+        model.findNext()
+        XCTAssertEqual(model.findIndex, 1)
+        model.findNext()
+        XCTAssertEqual(model.findIndex, 0, "wraps around")
+
+        model.highlightAllMatches()
+        XCTAssertEqual(model.highlights.count, 2)
+        XCTAssertTrue(model.findResults.isEmpty)
+        model.undoManager.undo()
+        XCTAssertEqual(model.highlights.count, 0, "one undo step")
+    }
+
+    @MainActor
+    func testMarkdownExport() throws {
+        let document = try makeTextPDF(lines: ["Alpha beta"])
+        let model = makeModel()
+        model.setDocument(document, url: URL(fileURLWithPath: "/tmp/Notes.pdf"))
+        let page = try XCTUnwrap(document.page(at: 0))
+        try model.highlight(XCTUnwrap(page.selection(for: NSRange(location: 0, length: 5))))
+
+        let md = model.highlightsMarkdown()
+        XCTAssertTrue(md.hasPrefix("# Highlights: Notes\n"), md)
+        XCTAssertTrue(md.contains("## Page 1"), md)
+        XCTAssertTrue(md.contains("- Alpha"), md)
+    }
+
+    @MainActor
+    func testSavedHighlightsCarryNoCommentText() throws {
+        let document = try makeTextPDF()
+        let model = makeModel()
+        model.setDocument(document, url: nil)
+        let page = try XCTUnwrap(document.page(at: 0))
+        try model.highlight(XCTUnwrap(page.selection(for: NSRange(location: 0, length: 5))))
+        for annotation in page.annotations where Highlighter.isHighlight(annotation) {
+            XCTAssertTrue((annotation.contents ?? "").isEmpty, "highlights must not carry note text")
+        }
+    }
+
+    @MainActor
+    func testOccurrencesIgnoreCaseAndLineBreaks() throws {
+        let document = try makeTextPDF(lines: ["The tenant must keep the lazy", "dog quiet. LAZY DOG rules apply."])
+        let page = try XCTUnwrap(document.page(at: 0))
+        let ranges = Highlighter.occurrences(of: "lazy  dog", on: page)
+        XCTAssertEqual(ranges.count, 2, "one match wraps a line, one differs in case")
+        let text = try XCTUnwrap(page.string) as NSString
+        XCTAssertEqual(PassageLibrary.normalize(text.substring(with: ranges[1])).lowercased(), "lazy dog")
+    }
+
+    @MainActor
+    func testLibraryRemembersNormalizedAndDeduplicates() {
+        let defaults = UserDefaults(suiteName: "HighlightTests-\(UUID().uuidString)")!
+        let library = PassageLibrary(defaults: defaults)
+        library.remember("  Lazy\n dog ", color: .yellow)
+        library.remember("lazy dog", color: .blue)
+        library.remember("ab", color: .green)  // too short to be useful
+        XCTAssertEqual(library.passages.count, 1)
+        XCTAssertEqual(library.passages[0].text, "Lazy dog")
+        XCTAssertEqual(library.passages[0].color, .blue)
+
+        let reloaded = PassageLibrary(defaults: defaults)
+        XCTAssertEqual(reloaded.passages, library.passages, "kept across launches")
+    }
+
+    @MainActor
+    func testAskModeOffersSavedPassagesInNewPDF() throws {
+        let model = makeModel(mode: .ask)
+        model.library.remember("lazy dog", color: .pink)
+        model.setDocument(try makeTextPDF(lines: ["Mind the lazy dog.", "Another lazy", "dog here."]), url: nil)
+        model.checkSavedPassages()
+
+        XCTAssertEqual(model.pendingSavedCount, 2)
+        XCTAssertEqual(model.highlights.count, 0, "nothing is added until the user accepts")
+        model.applyPendingSavedMatches()
+        XCTAssertEqual(model.highlights.count, 2)
+        model.undoManager.undo()
+        XCTAssertEqual(model.highlights.count, 0, "one undo step")
+    }
+
+    @MainActor
+    func testAlwaysModeHighlightsAndSkipsExistingHighlights() throws {
+        let model = makeModel(mode: .always)
+        model.library.remember("lazy dog", color: .green)
+        let document = try makeTextPDF(lines: ["Mind the lazy dog."])
+        model.setDocument(document, url: nil)
+        model.checkSavedPassages()
+        XCTAssertEqual(model.highlights.count, 1)
+
+        model.checkSavedPassages()
+        XCTAssertEqual(model.highlights.count, 1, "already-highlighted text is not highlighted twice")
+    }
+
+    @MainActor
+    func testOffModeDoesNothing() throws {
+        let model = makeModel(mode: .off)
+        model.library.remember("lazy dog", color: .green)
+        model.setDocument(try makeTextPDF(lines: ["Mind the lazy dog."]), url: nil)
+        model.checkSavedPassages()
+        XCTAssertEqual(model.pendingSavedCount, 0)
+        XCTAssertEqual(model.highlights.count, 0)
+    }
+
+    @MainActor
+    func testHighlightAllRemembersQuery() throws {
+        let model = makeModel()
+        model.setDocument(try makeTextPDF(lines: ["apple pie", "apple tart"]), url: nil)
+        model.find("apple pie")
+        model.highlightAllMatches()
+        XCTAssertEqual(model.library.passages.map(\.text), ["apple pie"])
     }
 }

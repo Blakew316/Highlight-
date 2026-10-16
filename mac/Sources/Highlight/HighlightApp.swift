@@ -54,6 +54,10 @@ struct HighlightCommands: Commands {
             Button("Save As…") { model.saveAs() }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
                 .disabled(!hasDocument)
+            Divider()
+            Button("Export Highlights as Markdown…") { model.presentExportPanel() }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .disabled(model.highlights.isEmpty)
         }
 
         CommandGroup(replacing: .undoRedo) {
@@ -84,6 +88,19 @@ struct HighlightCommands: Commands {
                 ))
                 .keyboardShortcut(KeyEquivalent(Character(String(option.number))))
             }
+            Divider()
+            Button("Find Next") { model.findNext() }
+                .keyboardShortcut("g")
+                .disabled(model.findResults.isEmpty)
+            Button("Find Previous") { model.findPrevious() }
+                .keyboardShortcut("g", modifiers: [.command, .shift])
+                .disabled(model.findResults.isEmpty)
+            Button("Highlight All Matches") { model.highlightAllMatches() }
+                .disabled(model.findResults.isEmpty)
+            Divider()
+            Button("Highlight Saved Passages") { model.highlightSavedPassagesNow() }
+                .keyboardShortcut("h", modifiers: [.command, .option])
+                .disabled(!hasDocument)
             Divider()
             Button("Copy All Highlights") { model.copyAllHighlights() }
                 .disabled(model.highlights.isEmpty)
