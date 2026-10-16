@@ -8,6 +8,17 @@ A website for highlighting PDFs in your browser. Open a PDF, select text, pick a
 
 Your files stay on your computer. The PDF is opened and saved entirely in the browser and is never uploaded.
 
+### Use it on iPhone and iPad
+
+The website works in Safari on iOS:
+
+- **Highlight:** long-press to select text and drag the handles, then tap a color in the bar under the selection.
+- **Zoom:** pinch with two fingers to zoom the document.
+- **Change or remove:** tap a highlight to recolor or remove it.
+- **Highlights list:** tap the list button to see your highlights and saved passages.
+- **Save:** **Download PDF** saves to the Files app (or opens the share sheet in the Claude app).
+- **Home Screen app:** when the site is hosted (for example on GitHub Pages), open it in Safari, tap **Share → Add to Home Screen**, and it opens full screen like an app, with its own icon.
+
 ### Use it
 
 - **Hosted:** open `index.html` from GitHub Pages (Settings → Pages → deploy from the `main` branch, root folder), or
