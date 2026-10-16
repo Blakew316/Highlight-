@@ -79,6 +79,8 @@ cd mac
 cp -R build/Highlight.app /Applications/
 ```
 
+The app icon comes from `mac/Resources/AppIcon.png`, drawn by `scripts/make-icon.py` (which also draws the website's Home Screen icon). The build script turns it into `AppIcon.icns`.
+
 Then open **Highlight** from Applications, or right-click a PDF in Finder → **Open With → Highlight**. For a quick run without installing, use `swift run` inside `mac/`.
 
 | Action | How |
