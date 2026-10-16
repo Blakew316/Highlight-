@@ -16,8 +16,8 @@ cp site/apple-touch-icon.png apple-touch-icon.png
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Highlight">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#fbfcfd" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#191d25" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1d1d1f" media="(prefers-color-scheme: dark)">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 /* Same base as the Claude artifact frame: keep content clear of the notch and home indicator. */
