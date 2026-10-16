@@ -62,12 +62,22 @@ final class DocumentModel: ObservableObject {
     let library: PassageLibrary
     private var lastFindQuery = ""
 
+    /// Recently opened PDFs, newest first (kept across launches).
+    @Published private(set) var recentFiles: [URL] = []
+    /// 1-based page shown in the PDF view, for the toolbar's page indicator.
+    @Published private(set) var currentPageNumber = 0
+    private let defaults: UserDefaults
+    private static let recentsKey = "recentFiles.v1"
+    static let maxRecents = 10
+
     /// Text under each annotation, read once. Reading it means a text-layout
     /// query per line, which made every edit slow once there were hundreds.
     private var textCache: [ObjectIdentifier: String] = [:]
 
-    init(library: PassageLibrary? = nil) {
+    init(library: PassageLibrary? = nil, defaults: UserDefaults = .standard) {
         self.library = library ?? PassageLibrary()
+        self.defaults = defaults
+        recentFiles = (defaults.stringArray(forKey: Self.recentsKey) ?? []).map { URL(fileURLWithPath: $0) }
         // Explicit groups make undo independent of the run loop (and testable).
         undoManager.groupsByEvent = false
         pdfView.autoScales = true
@@ -76,6 +86,46 @@ final class DocumentModel: ObservableObject {
         pdfView.onSelectionFinished = { [weak self] in self?.highlightCurrentSelection() }
         pdfView.menuCustomizer = { [weak self] menu, event in self?.customize(menu, for: event) }
         pdfView.onAreaDrag = { [weak self] page, box, finished in self?.areaDragged(on: page, box: box, finished: finished) }
+        NotificationCenter.default.addObserver(forName: .PDFViewPageChanged, object: pdfView, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.updateCurrentPage() }
+        }
+    }
+
+    var pageCount: Int { document?.pageCount ?? 0 }
+
+    private func updateCurrentPage() {
+        guard let document, let page = pdfView.currentPage else { currentPageNumber = 0; return }
+        currentPageNumber = document.index(for: page) + 1
+    }
+
+    // MARK: - Recent files
+
+    /// Puts `url` at the top of the recent list (also feeds the Dock icon's menu).
+    private func noteRecent(_ url: URL) {
+        let path = url.standardizedFileURL.path
+        var paths = recentFiles.map { $0.standardizedFileURL.path }.filter { $0 != path }
+        paths.insert(path, at: 0)
+        paths = Array(paths.prefix(Self.maxRecents))
+        recentFiles = paths.map { URL(fileURLWithPath: $0) }
+        defaults.set(paths, forKey: Self.recentsKey)
+        NSDocumentController.shared.noteNewRecentDocumentURL(url)
+    }
+
+    /// Recent files that still exist on disk.
+    var availableRecentFiles: [URL] {
+        recentFiles.filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    func clearRecentFiles() {
+        recentFiles = []
+        defaults.removeObject(forKey: Self.recentsKey)
+        NSDocumentController.shared.clearRecentDocuments(nil)
+    }
+
+    /// On launch, picks up where you left off by reopening the last PDF.
+    func reopenLastDocument() {
+        guard document == nil, let url = availableRecentFiles.first else { return }
+        load(url)
     }
 
     var title: String { fileURL?.lastPathComponent ?? "Highlight" }
@@ -113,6 +163,7 @@ final class DocumentModel: ObservableObject {
             return
         }
         setDocument(doc, url: url)
+        noteRecent(url)
         checkSavedPassages()
     }
 
@@ -127,6 +178,7 @@ final class DocumentModel: ObservableObject {
         undoManager.removeAllActions()
         isDirty = false
         refreshHighlights()
+        updateCurrentPage()
     }
 
     // MARK: - Saving

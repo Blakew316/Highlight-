@@ -36,6 +36,14 @@ struct ContentView: View {
         .navigationTitle(model.title)
         .navigationSubtitle(model.isDirty ? "Edited" : "")
         .toolbar {
+            ToolbarItem(placement: .status) {
+                if model.pageCount > 0 {
+                    Text("Page \(max(model.currentPageNumber, 1)) of \(model.pageCount)")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Page \(max(model.currentPageNumber, 1)) of \(model.pageCount)")
+                }
+            }
             ToolbarItemGroup(placement: .primaryAction) {
                 if !model.findResults.isEmpty {
                     Text("\(model.findIndex + 1) of \(model.findResults.count)")

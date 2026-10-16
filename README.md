@@ -16,7 +16,9 @@ The website works in Safari on iOS:
 - **Zoom:** pinch with two fingers to zoom the document.
 - **Change or remove:** tap a highlight to recolor or remove it.
 - **Highlights list:** tap the list button to see your highlights and saved passages.
-- **Save:** **Download PDF** saves to the Files app (or opens the share sheet in the Claude app).
+- **Save:** **Download** opens the share sheet: Save to Files, Mail, AirDrop.
+- **Color:** the color dot in the bottom toolbar sets the color for new highlights.
+- **Area highlight:** tap the dashed-box button, drag over the area, and you're back to scrolling.
 - **Home Screen app:** when the site is hosted (for example on GitHub Pages), open it in Safari, tap **Share → Add to Home Screen**, and it opens full screen like an app, with its own icon.
 
 ### Use it
@@ -43,7 +45,9 @@ Highlights already in a PDF, including ones made in Preview or by this site earl
 
 **Saved passages.** Every passage you highlight is saved. When you open another PDF, such as a new copy of the same form, Highlight looks for the same wording (ignoring case and line breaks) and offers to highlight it in the same color. In the sidebar's **Saved** tab you can choose what happens when a PDF opens (**Ask**, **Highlight** automatically, or **Off**), remove passages you no longer want matched, or highlight saved passages in the open PDF on demand. Inside Claude the list is stored privately for your account, so it follows you across devices. Opened as a plain web page, it stays in that browser. Matching is on exact wording, so a reworded section won't match.
 
-Large PDFs open on page 1 right away while the rest load in the background. Pages far off screen are released from memory. Until you download, your highlights are auto-saved in this browser, and reopening the same file offers to restore them.
+**Picks up where you left off.** The site reopens the last PDF you had open, with any highlights you hadn't downloaded yet. Click or tap the file name at the top for your recent files. Recent files and unsaved highlights are kept only in this browser.
+
+Large PDFs open on page 1 right away while the rest load in the background. Pages far off screen are released from memory. A page indicator shows where you are while scrolling.
 
 ### Limitations
 
@@ -85,7 +89,7 @@ Then open **Highlight** from Applications, or right-click a PDF in Finder → **
 
 | Action | How |
 |---|---|
-| Open | ⌘O, or drag a PDF into the window |
+| Open | ⌘O, File → Open Recent, or drag a PDF into the window. The last PDF reopens when the app starts. |
 | Highlight selection | ⇧⌘H, the toolbar button, or right-click → Highlight |
 | Highlighter mode | ⌘E: every selection is highlighted right away |
 | Highlight an area | **Highlight Area** in the toolbar (⇧⌘B), then drag a box over anything: signature blocks, blank lines, form fields, scanned text |

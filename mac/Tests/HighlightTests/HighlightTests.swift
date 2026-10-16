@@ -11,7 +11,7 @@ final class HighlightTests: XCTestCase {
         let defaults = UserDefaults(suiteName: "HighlightTests-\(UUID().uuidString)")!
         let library = PassageLibrary(defaults: defaults)
         library.mode = mode
-        return DocumentModel(library: library)
+        return DocumentModel(library: library, defaults: defaults)
     }
 
     /// A one-page PDF containing real text, so PDFKit selections work.
@@ -324,5 +324,38 @@ final class HighlightTests: XCTestCase {
         XCTAssertFalse(model.highlighterMode)
         model.highlighterMode = true
         XCTAssertFalse(model.areaMode)
+    }
+
+    @MainActor
+    func testRecentFilesAndReopenLast() throws {
+        let defaults = UserDefaults(suiteName: "HighlightTests-\(UUID().uuidString)")!
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var urls: [URL] = []
+        for name in ["a", "b"] {
+            let url = dir.appendingPathComponent("\(name).pdf")
+            XCTAssertTrue(try makeTextPDF(lines: [name]).write(to: url))
+            urls.append(url)
+        }
+
+        let model = DocumentModel(library: PassageLibrary(defaults: defaults), defaults: defaults)
+        model.open(urls[0])
+        model.open(urls[1])
+        model.open(urls[1])  // already open: no change
+        XCTAssertEqual(model.recentFiles.map(\.lastPathComponent), ["b.pdf", "a.pdf"])
+        XCTAssertEqual(model.pageCount, 1)
+        model.open(urls[0])  // reopening moves it back to the top
+        XCTAssertEqual(model.recentFiles.map(\.lastPathComponent), ["a.pdf", "b.pdf"])
+
+        // A fresh launch reopens the most recent file.
+        let relaunched = DocumentModel(library: PassageLibrary(defaults: defaults), defaults: defaults)
+        XCTAssertEqual(relaunched.recentFiles.count, 2)
+        relaunched.reopenLastDocument()
+        XCTAssertEqual(relaunched.fileURL?.lastPathComponent, "a.pdf")
+
+        // Deleted files drop out of the menu.
+        try FileManager.default.removeItem(at: urls[1])
+        XCTAssertEqual(relaunched.availableRecentFiles.map(\.lastPathComponent), ["a.pdf"])
     }
 }

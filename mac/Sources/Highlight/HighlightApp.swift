@@ -23,6 +23,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        // After any file Finder asked us to open, reopen the last PDF if nothing is open.
+        DispatchQueue.main.async { DocumentModel.shared.reopenLastDocument() }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -45,6 +47,14 @@ struct HighlightCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("Open…") { model.presentOpenPanel() }
                 .keyboardShortcut("o")
+            Menu("Open Recent") {
+                ForEach(model.availableRecentFiles, id: \.self) { url in
+                    Button(url.lastPathComponent) { model.open(url) }
+                }
+                Divider()
+                Button("Clear Menu") { model.clearRecentFiles() }
+                    .disabled(model.recentFiles.isEmpty)
+            }
         }
 
         CommandGroup(replacing: .saveItem) {

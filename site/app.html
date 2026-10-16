@@ -87,7 +87,7 @@ svg { display: block; }
   color: var(--muted); font-size: 14px; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.title .file::before { content: "/"; margin-right: 10px; color: var(--line); }
+
 .title .dirty { color: var(--muted); font-size: 12px; padding: 2px 7px; border-radius: 999px; background: var(--fill); flex: none; }
 .tools { display: flex; align-items: center; gap: 4px; }
 .group { display: flex; align-items: center; gap: 2px; }
@@ -317,6 +317,38 @@ dialog .row .btn:hover { background: var(--fill); }
 }
 #scrim { position: fixed; inset: 0; z-index: 19; background: rgba(0, 0, 0, .3); }
 
+/* File name doubles as the Recent files menu. */
+.title .file { border: 0; background: none; font: inherit; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.title .file:hover { background: var(--fill); }
+.title .file::after { content: " ▾"; font-size: .7em; opacity: .6; }
+#recents {
+  position: fixed; z-index: 35; min-width: 260px; max-width: min(360px, calc(100vw - 24px));
+  background: var(--surface); color: var(--ink); border-radius: 14px; padding: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .22), 0 0 0 .5px var(--line);
+}
+#recents .hd { font-size: 12px; color: var(--muted); padding: 6px 10px 4px; }
+#recents button {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; width: 100%; text-align: left;
+  border: 0; background: none; padding: 8px 10px; border-radius: 8px; cursor: pointer; font: inherit; color: inherit;
+}
+#recents button:hover, #recents button:focus-visible { background: var(--fill); outline: none; }
+#recents .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+#recents .meta { grid-column: 1; font-size: 12px; color: var(--muted); }
+#recents .cur { grid-row: 1 / span 2; grid-column: 2; align-self: center; color: var(--accent); font-size: 13px; }
+#recents .act { color: var(--accent); }
+#recents hr { border: 0; border-top: .5px solid var(--line); margin: 4px 6px; }
+
+/* Page indicator, shown briefly while scrolling. */
+#pageInd {
+  position: fixed; z-index: 16; left: 50%; transform: translateX(-50%);
+  bottom: calc(18px + var(--toolbar-h) + env(safe-area-inset-bottom, 0px));
+  background: var(--hud); color: var(--hud-ink); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+  padding: 6px 12px; border-radius: 999px; pointer-events: none; opacity: 0; transition: opacity .25s ease;
+}
+#pageInd.show { opacity: 1; }
+.color-dot { width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .25), 0 0 0 2px var(--surface), 0 0 0 3px var(--line); }
+.narrow-only { display: none !important; }
+
 /* ---------- touch screens ---------- */
 .btn, .swatch, .tab, .item .x { touch-action: manipulation; }
 @media (pointer: coarse) {
@@ -338,6 +370,7 @@ dialog .row .btn:hover { background: var(--fill); }
   .app-mark, .title .name { display: none; }
   .title .file { font-size: 17px; font-weight: 600; color: var(--ink); max-width: 100%; }
   .title .file::before { display: none; }
+  .title .file { max-width: 100%; }
   .title .dirty { background: none; padding: 0; font-size: 11px; }
   .lead .btn { padding: 0 4px; font-size: 17px; font-weight: 400; height: 40px; }
   .lead .btn svg { display: none; }
@@ -359,6 +392,7 @@ dialog .row .btn:hover { background: var(--fill); }
   .tools .btn:disabled { opacity: .3; }
   .tools #areaBtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-radius: 12px; }
   .swatch-group, .zoom-group, .sep, .hide-narrow, .txt, #modeBtn { display: none !important; }
+  .narrow-only { display: inline-flex !important; }
   #sideBtn { position: relative; }
   #sideCount { position: absolute; top: 6px; right: 2px; background: var(--accent); color: var(--accent-ink); }
 
@@ -401,7 +435,7 @@ dialog .row .btn:hover { background: var(--fill); }
   <div class="title">
     <svg class="app-mark" viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="6" fill="#0a5fd6"/><rect x="5" y="6.5" width="13" height="2.4" rx="1.2" fill="#fff" opacity=".9"/><rect x="4" y="11" width="18" height="4.6" rx="1.2" fill="#ffd60a"/><rect x="6" y="12.3" width="13" height="2" rx="1" fill="#0a5fd6"/><rect x="5" y="17.6" width="10" height="2.4" rx="1.2" fill="#fff" opacity=".9"/></svg>
     <span class="name">Highlight</span>
-    <span class="file" id="fileName"></span>
+    <button class="file" id="fileName" type="button" aria-haspopup="menu" aria-expanded="false" title="Recent files"></button>
     <span class="dirty" id="dirty" hidden>Edited</span>
   </div>
   <nav class="tools" aria-label="Tools">
@@ -411,6 +445,9 @@ dialog .row .btn:hover { background: var(--fill); }
     <button class="btn mouse-only" id="modeBtn" aria-pressed="false" title="When on, text is highlighted as soon as you finish selecting it">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l4.5 4.5-7 7H5v-4.5z"/><path d="M3 17.5h9"/></svg>
       <span class="txt">Auto-highlight</span>
+    </button>
+    <button class="btn icon narrow-only" id="colorBtn" aria-label="Highlight color" title="Highlight color">
+      <span class="color-dot" id="colorDot"></span>
     </button>
     <button class="btn" id="areaBtn" aria-pressed="false" title="Highlight an area: drag a box over anything, such as signature lines, form fields or scanned text (B)">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 2.2" aria-hidden="true"><rect x="3" y="4.5" width="14" height="11" rx="1.5"/></svg>
@@ -510,6 +547,8 @@ dialog .row .btn:hover { background: var(--fill); }
 <div id="scrim" hidden></div>
 
 <div id="pop" hidden role="toolbar" aria-label="Highlight actions"></div>
+<div id="recents" hidden role="menu" aria-label="Recent files"></div>
+<div id="pageInd" aria-hidden="true"></div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <div class="drop-hint" id="dropHint" hidden>Drop a PDF to open it</div>
 <dialog id="confirmDlg">
@@ -584,11 +623,7 @@ const downloadsP = (window.claude && typeof window.claude.use === "function")
 async function openFile(file) {
   if (!file) return;
   if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") { toast(`“${file.name}” isn’t a PDF.`); return; }
-  if (S.dirty && !S.sample) {
-    const ok = await confirmDialog("Discard unsaved highlights?",
-      `Your highlights in “${S.name}” haven’t been downloaded yet. Opening another file will lose them.`, "Open anyway");
-    if (!ok) return;
-  }
+  if (!(await confirmLeave())) return;
   const bytes = new Uint8Array(await file.arrayBuffer());
   await openBytes(bytes, file.name, false);
 }
@@ -630,6 +665,7 @@ async function openBytes(bytes, name, sample) {
                    renderedScale: 0, rendering: false, textContent: null, hasImported: false });
   }
   els.fileName.textContent = sample ? "Sample document" : name;
+  if (!sample) recentRemember(bytes, name, S.key);
   els.fileName.title = name;
   els.viewer.scrollTop = 0;
   fitWidth();
@@ -992,7 +1028,7 @@ function setAreaMode(on) {
   if (S.area) {
     if (S.auto) { S.auto = false; $("modeBtn").setAttribute("aria-pressed", "false"); }
     window.getSelection().removeAllRanges(); hidePop();
-    toast(isTouch() ? "Drag over an area to highlight it. Tap the box button again to scroll." : "Drag a box over any area to highlight it.", 4500);
+    toast(isTouch() ? "Drag over the area to highlight it" : "Drag a box over any area to highlight it. Press Esc when done.", 3500);
   }
 }
 function bindArea() {
@@ -1028,6 +1064,8 @@ function bindArea() {
     const rect = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])].map(num);
     const text = await textUnder(p, [rect]).catch(() => "");
     commit({ type: "add", items: [{ id: nextId++, page: S.pages.indexOf(p), rects: [rect], rgb: COLORS[S.color].rgb.slice(), text }] });
+    // On touch screens area mode blocks scrolling, so it ends after each box.
+    if (e.pointerType !== "mouse") { S.area = false; $("areaBtn").setAttribute("aria-pressed", "false"); els.pages.classList.remove("area-mode"); }
   };
   els.pages.addEventListener("pointerup", finish);
   els.pages.addEventListener("pointercancel", cancel);
@@ -1132,6 +1170,7 @@ function reveal(h) {
 /* ---------- toolbar state ---------- */
 function setColor(key) {
   S.color = key;
+  const dot = $("colorDot"); if (dot) dot.style.background = css(COLORS[key].rgb);
   for (const b of $("swatches").children) b.setAttribute("aria-checked", String(b.dataset.key === key));
 }
 function setSide(open) {
@@ -1221,7 +1260,7 @@ async function download() {
   let out;
   try { out = await buildPdf(); }
   catch (e) { toast(e.message || String(e), 7000); btn.disabled = false; return; }
-  const base = S.name.replace(/\.pdf$/i, "") || "document";
+  const base = S.name.replace(/\.pdf$/i, "").replace(/( \(highlighted\))+$/i, "") || "document";
   const filename = `${base} (highlighted).pdf`;
   const blob = new Blob([out], { type: "application/pdf" });
   const n = S.highlights.length;
@@ -1478,26 +1517,20 @@ function clearStored() {
   clearTimeout(persistTimer);
   try { if (S.key) localStorage.removeItem(S.key); } catch {}
 }
+/* Brings back highlights that were auto-saved but never downloaded, without
+   asking: they are the user's own work on this exact file. */
 function offerRestore() {
   if (!S.key) return;
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(S.key) || "null"); } catch {}
   if (!saved || !Array.isArray(saved.highlights)) return;
   const n = saved.highlights.length;
-  const when = new Date(saved.savedAt || Date.now()).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
-  let d;
-  const restore = bannerButton("Restore", true, () => {
-    const touched = new Set(S.highlights.map((h) => h.page));
-    S.highlights = saved.highlights.map((h) => ({ ...h, id: nextId++ }));
-    S.highlights.forEach((h) => touched.add(h.page));
-    S.undo = []; S.redo = []; S.dirty = true;
-    redrawPages([...touched]); renderSidebar(); updateUI();
-    d.remove(); toast(`Restored ${n} highlight${n === 1 ? "" : "s"}`);
-  });
-  const discard = bannerButton("Discard", false, () => { clearStored(); d.remove(); });
-  d = makeBanner({ id: "restoreBanner", icon: "restore", title: "Unsaved highlights found.",
-    text: `${n} highlight${n === 1 ? "" : "s"} from ${when} weren’t downloaded.`, actions: [restore, discard] });
-  els.pages.prepend(d);
+  const touched = new Set(S.highlights.map((h) => h.page));
+  S.highlights = saved.highlights.map((h) => ({ ...h, id: nextId++ }));
+  S.highlights.forEach((h) => touched.add(h.page));
+  S.undo = []; S.redo = []; S.dirty = true;
+  redrawPages([...touched]); renderSidebar(); updateUI();
+  if (n) toast(`Picked up where you left off: ${n} highlight${n === 1 ? "" : "s"} not yet downloaded`, 3500);
 }
 
 /* ---------- find ---------- */
@@ -1643,6 +1676,20 @@ async function exportMarkdown() {
    inside Claude, otherwise as a normal browser download. Returns true when saved. */
 async function offerFile(filename, blob, doneMsg) {
   const dl = await downloadsP;
+  // On iPhone and iPad the share sheet is the natural way to save: Files, Mail, AirDrop.
+  if (!dl && isTouch() && navigator.canShare) {
+    try {
+      const file = new File([blob], filename, { type: blob.type || "application/octet-stream" });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        toast(doneMsg.replace(/^Downloaded/, "Shared").replace(/^Exported/, "Shared"));
+        return true;
+      }
+    } catch (e) {
+      if (e && e.name === "AbortError") return false;
+      // Fall through to a normal download.
+    }
+  }
   try {
     if (dl) {
       await dl.save({ filename, data: blob });
@@ -1661,6 +1708,124 @@ async function offerFile(filename, blob, doneMsg) {
     else toast("Downloading isn’t available in this view. Open the page in your browser to save files.", 6000);
     return false;
   }
+}
+
+/* ---------- recent files ---------- */
+/* The last few PDFs opened are kept in this browser (IndexedDB) so the site can
+   pick up where you left off: the newest reopens on launch, and the file-name
+   menu lists the rest. Nothing leaves the device. */
+const RECENT_MAX = 6, RECENT_MAX_BYTES = 60 * 1024 * 1024;
+function recentDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("highlight", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("recent", { keyPath: "key" });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function recentTx(mode, fn) {
+  const db = await recentDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("recent", mode);
+    const out = fn(tx.objectStore("recent"));
+    tx.oncomplete = () => { db.close(); resolve(out && out.result); };
+    tx.onerror = tx.onabort = () => { db.close(); reject(tx.error); };
+  });
+}
+async function recentList() {
+  try { return ((await recentTx("readonly", (st) => st.getAll())) || []).sort((a, b) => b.openedAt - a.openedAt); }
+  catch { return []; }
+}
+async function recentRemember(bytes, name, key) {
+  if (!key || bytes.length > RECENT_MAX_BYTES) return;
+  try {
+    await recentTx("readwrite", (st) => st.put({ key, name, size: bytes.length, openedAt: Date.now(), bytes }));
+    const all = await recentList();
+    if (all.length > RECENT_MAX) await recentTx("readwrite", (st) => all.slice(RECENT_MAX).forEach((r) => st.delete(r.key)));
+  } catch { /* storage unavailable or full: recents are a convenience */ }
+}
+async function recentClear() { try { await recentTx("readwrite", (st) => st.clear()); } catch {} }
+
+function relTime(t) {
+  const m = Math.round((Date.now() - t) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} hr ago`;
+  return new Date(t).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+async function toggleRecents() {
+  const menu = $("recents");
+  if (!menu.hidden) { closeRecents(); return; }
+  const list = await recentList();
+  menu.textContent = "";
+  const hd = document.createElement("div"); hd.className = "hd"; hd.textContent = list.length ? "Recent" : "No recent files yet";
+  menu.append(hd);
+  for (const r of list) {
+    const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "menuitem");
+    const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = r.name;
+    const meta = document.createElement("span"); meta.className = "meta"; meta.textContent = `${relTime(r.openedAt)} · ${(r.size / 1048576).toFixed(r.size < 1048576 ? 2 : 1)} MB`;
+    b.append(nm, meta);
+    if (r.key === S.key) { const c = document.createElement("span"); c.className = "cur"; c.textContent = "Open"; b.append(c); }
+    b.addEventListener("click", async () => {
+      closeRecents();
+      if (r.key === S.key) return;
+      if (!(await confirmLeave())) return;
+      await openBytes(r.bytes, r.name, false);
+    });
+    menu.append(b);
+  }
+  menu.append(document.createElement("hr"));
+  const open = document.createElement("label"); open.htmlFor = "fileInput";
+  const ob = document.createElement("button"); ob.type = "button"; ob.className = "act"; ob.setAttribute("role", "menuitem"); ob.textContent = "Open Another PDF…";
+  ob.addEventListener("click", () => { closeRecents(); $("fileInput").click(); });
+  menu.append(ob);
+  if (list.length) {
+    const clr = document.createElement("button"); clr.type = "button"; clr.className = "act"; clr.setAttribute("role", "menuitem"); clr.textContent = "Clear Recent Files";
+    clr.addEventListener("click", async () => { closeRecents(); await recentClear(); toast("Cleared recent files"); });
+    menu.append(clr);
+  }
+  menu.hidden = false;
+  const a = $("fileName").getBoundingClientRect();
+  const w = menu.offsetWidth;
+  menu.style.top = `${a.bottom + 6}px`;
+  menu.style.left = `${Math.max(12, Math.min(window.innerWidth - w - 12, a.left + a.width / 2 - w / 2))}px`;
+  $("fileName").setAttribute("aria-expanded", "true");
+  const first = menu.querySelector("button"); if (first) first.focus({ preventScroll: true });
+}
+function closeRecents() { $("recents").hidden = true; $("fileName").setAttribute("aria-expanded", "false"); }
+/* Before replacing the open file: unsaved highlights are auto-saved per file, so
+   only ask when that auto-save isn't available. */
+async function confirmLeave() {
+  if (!S.dirty || S.sample || S.key) return true;
+  return confirmDialog("Discard unsaved highlights?",
+    `Your highlights in “${S.name}” haven’t been downloaded yet. Opening another file will lose them.`, "Open anyway");
+}
+
+/* ---------- page indicator ---------- */
+let pageIndTimer;
+function showPageIndicator() {
+  if (!S.pdf || S.pages.length < 2) return;
+  const vr = els.viewer.getBoundingClientRect(), mid = vr.top + vr.height / 2;
+  let cur = 0;
+  for (let i = 0; i < S.pages.length; i++) { const r = S.pages[i].el.getBoundingClientRect(); if (r.top <= mid) cur = i; else break; }
+  const ind = $("pageInd");
+  ind.textContent = `${cur + 1} of ${S.pages.length}`;
+  ind.classList.add("show");
+  clearTimeout(pageIndTimer);
+  pageIndTimer = setTimeout(() => ind.classList.remove("show"), 1100);
+}
+
+/* ---------- color palette (phones) ---------- */
+function showPalette() {
+  const pop = els.pop;
+  pop.textContent = ""; pop.dataset.kind = "palette";
+  for (const k of COLOR_KEYS) {
+    const b = swatchButton(k, (key) => { setColor(key); hidePop(); }, k === S.color);
+    pop.append(b);
+  }
+  const a = $("colorBtn").getBoundingClientRect();
+  placePop(a);
 }
 
 /* ---------- banners ---------- */
@@ -1751,6 +1916,19 @@ function bind() {
   bindPinch();
   bindArea();
   $("areaBtn").addEventListener("click", () => setAreaMode(!S.area));
+  $("fileName").addEventListener("click", (e) => { e.stopPropagation(); toggleRecents(); });
+  $("colorBtn").addEventListener("click", (e) => { e.stopPropagation(); els.pop.dataset.kind === "palette" && !els.pop.hidden ? hidePop() : showPalette(); });
+  document.addEventListener("pointerdown", (e) => {
+    if (!$("recents").hidden && !$("recents").contains(e.target) && e.target !== $("fileName")) closeRecents();
+    if (els.pop.dataset.kind === "palette" && !els.pop.contains(e.target) && !$("colorBtn").contains(e.target)) hidePop();
+  });
+  $("recents").addEventListener("keydown", (e) => {
+    const items = [...$("recents").querySelectorAll("button")];
+    const i = items.indexOf(document.activeElement);
+    if (e.key === "Escape") { closeRecents(); $("fileName").focus(); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  });
   for (const k of COLOR_KEYS) {
     const b = swatchButton(k, setColor, k === S.color);
     b.dataset.key = k;
@@ -1801,7 +1979,7 @@ function bind() {
   $("sideClose").addEventListener("click", () => setSide(false));
   $("scrim").addEventListener("click", () => setSide(false));
 
-  els.viewer.addEventListener("scroll", () => { renderVisible(); if (!els.pop.hidden) hidePop(); }, { passive: true });
+  els.viewer.addEventListener("scroll", () => { renderVisible(); showPageIndicator(); if (!els.pop.hidden) hidePop(); }, { passive: true });
   let resizeT, wasNarrow = isNarrow();
   window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => {
     const narrow = isNarrow();
@@ -1883,7 +2061,14 @@ function bind() {
 async function start() {
   bind();
   setSide(!isNarrow());
+  setColor(S.color);
   updateUI(); renderSidebar();
+  // Pick up where you left off: reopen the most recent file (its unsaved
+  // highlights come back via the auto-save).
+  const recent = (await recentList())[0];
+  if (recent) {
+    try { await openBytes(recent.bytes, recent.name, false); if (S.pdf) return; } catch (e) { console.error(e); }
+  }
   try {
     const { bytes, seeds } = await makeSample();
     await openBytes(bytes, "How to read a paper.pdf", true);
