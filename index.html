@@ -89,6 +89,7 @@ button, input { font: inherit; color: inherit; }
   font-weight: 500; white-space: nowrap; text-decoration: none; box-sizing: border-box;
 }
 .btn:hover { background: var(--surface-2); }
+a.btn { color: inherit; }
 .btn:disabled { opacity: .45; cursor: default; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.primary:hover { filter: brightness(1.08); }
@@ -166,6 +167,23 @@ aside {
 .hl-rect { position: absolute; border-radius: 1.5px; }
 .hl-rect.flash { animation: flash 1.1s ease-out; }
 @keyframes flash { 0%, 40% { outline: 3px solid var(--accent); outline-offset: 2px; } 100% { outline: 3px solid transparent; outline-offset: 2px; } }
+
+.find-layer { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.find-hit { position: absolute; border-radius: 2px; box-shadow: 0 0 0 1.5px var(--accent); }
+.find-hit.current { background: rgba(36, 64, 122, .18); box-shadow: 0 0 0 2.5px var(--accent); }
+
+.findbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding-block: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--surface-2); border-bottom: 1px solid var(--line);
+}
+.findbar input {
+  height: 32px; box-sizing: border-box; padding: 0 10px; min-width: 0; flex: 1 1 200px; max-width: 360px;
+  border: 1px solid var(--line); border-radius: 7px; background: var(--surface);
+}
+.findbar .status { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 9ch; }
 
 /* PDF.js text layer (adapted from pdf_viewer.css 3.11) */
 .textLayer {
@@ -247,6 +265,9 @@ dialog .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wra
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9.5 2.5l4 4-6 6H3.5v-4z"/><path d="M2 14.5h7"/></svg>
       Auto-highlight
     </button>
+    <button class="btn icon" id="findBtn" aria-label="Find in PDF" title="Find (⌘F)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+    </button>
     <div class="sep hide-narrow"></div>
     <div class="group">
       <button class="btn icon" id="zoomOut" aria-label="Zoom out">−</button>
@@ -271,6 +292,16 @@ dialog .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wra
   </div>
 </header>
 
+<div class="findbar" id="findbar" hidden role="search">
+  <label class="sr" for="findInput">Find in PDF</label>
+  <input type="search" id="findInput" placeholder="Find in PDF" autocomplete="off" spellcheck="false">
+  <span class="status" id="findStatus" aria-live="polite"></span>
+  <button class="btn icon" id="findPrev" aria-label="Previous match" title="Previous (⇧Enter)">↑</button>
+  <button class="btn icon" id="findNext" aria-label="Next match" title="Next (Enter)">↓</button>
+  <button class="btn" id="findAll">Highlight all matches</button>
+  <button class="btn icon" id="findClose" aria-label="Close find">×</button>
+</div>
+
 <div class="main" id="main">
   <aside id="side" aria-label="Highlights">
     <div class="side-head">
@@ -280,6 +311,7 @@ dialog .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wra
     <ul class="list" id="list"></ul>
     <div class="side-foot">
       <button class="btn" id="copyBtn">Copy all text</button>
+      <button class="btn" id="mdBtn">Export Markdown</button>
     </div>
   </aside>
   <div id="viewer" tabindex="-1">
@@ -300,7 +332,6 @@ dialog .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wra
 </dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script>
 (() => {
@@ -328,6 +359,7 @@ const S = {
   undo: [], redo: [], dirty: false,
 };
 let nextId = 1;
+let openToken = 0;
 
 const $ = (id) => document.getElementById(id);
 const els = {
@@ -385,27 +417,56 @@ async function openBytes(bytes, name, sample) {
     return;
   }
   if (S.pdf) S.pdf.destroy();
-  Object.assign(S, { pdf, bytes, name, sample, highlights: [], undo: [], redo: [], dirty: false, pages: [], fit: true });
+  const token = ++openToken;
+  closeFind();
+  Object.assign(S, { pdf, bytes, name, sample, highlights: [], undo: [], redo: [], dirty: false, pages: [], fit: true, loaded: false });
+  S.key = sample ? null : storageKey(bytes, name);
 
+  // Show page 1 right away; every other page starts as a placeholder sized like page 1.
+  const first = await pdf.getPage(1);
+  if (token !== openToken) return;
   els.pages.textContent = "";
   if (sample) els.pages.appendChild(sampleBanner());
   for (let i = 0; i < pdf.numPages; i++) {
-    const pdfPage = await pdf.getPage(i + 1);
     const el = document.createElement("div"); el.className = "page"; el.dataset.index = i;
     const hl = document.createElement("div"); hl.className = "hl-layer";
+    const find = document.createElement("div"); find.className = "find-layer";
     const text = document.createElement("div"); text.className = "textLayer";
     const n = document.createElement("span"); n.className = "num"; n.textContent = `${i + 1} / ${pdf.numPages}`;
-    el.append(hl, text, n);
+    el.append(hl, find, text, n);
     els.pages.appendChild(el);
-    const p = { pdfPage, el, hl, text, canvas: null, viewport: null, renderedScale: 0, rendering: false, textContent: null, hasImported: false };
-    S.pages.push(p);
-    await importHighlights(p, i);
+    S.pages.push({ pdfPage: i === 0 ? first : null, el, hl, find, text, canvas: null, viewport: null,
+                   renderedScale: 0, rendering: false, textContent: null, hasImported: false });
   }
   els.fileName.textContent = sample ? "Sample document" : name;
   els.fileName.title = name;
   els.viewer.scrollTop = 0;
   fitWidth();
   renderSidebar(); updateUI();
+  await loadPages(pdf, token);
+}
+
+/* Fetches the remaining pages and their existing highlights a few at a time, so
+   big documents become usable immediately instead of after every page loads. */
+async function loadPages(pdf, token) {
+  const BATCH = 8;
+  for (let i = 0; i < S.pages.length; i += BATCH) {
+    await Promise.all(S.pages.slice(i, i + BATCH).map(async (p, k) => {
+      const index = i + k;
+      try {
+        if (!p.pdfPage) p.pdfPage = await pdf.getPage(index + 1);
+        if (token !== openToken) return;
+        sizePage(p);
+        await importHighlights(p, index);
+        if (token === openToken) redrawPagesAndFind(p);
+      } catch (e) { console.error(e); }
+    }));
+    if (token !== openToken) return;
+    renderSidebar(); renderVisible();
+  }
+  S.loaded = true;
+  updateUI();
+  offerRestore();
 }
 
 /* Existing highlight annotations become editable highlights. */
@@ -449,6 +510,7 @@ async function textUnder(p, rects) {
 /* ---------- layout & rendering ---------- */
 function fitWidth() {
   if (!S.pages.length) return;
+  if (!S.pages[0].pdfPage) return;
   const base = S.pages[0].pdfPage.getViewport({ scale: 1 });
   const avail = els.viewer.clientWidth - 40;
   S.fit = true;
@@ -457,14 +519,21 @@ function fitWidth() {
 function setScale(scale) {
   S.scale = scale;
   for (const p of S.pages) {
-    p.viewport = p.pdfPage.getViewport({ scale });
-    p.el.style.width = `${Math.floor(p.viewport.width)}px`;
-    p.el.style.height = `${Math.floor(p.viewport.height)}px`;
+    sizePage(p);
     if (p.renderedScale !== scale) { p.text.textContent = ""; }
-    drawHighlights(p);
+    redrawPagesAndFind(p);
   }
   $("zoomFit").textContent = `${Math.round(scale * 100)}%`;
   renderVisible();
+}
+
+/* Sizes a page box. Pages not fetched yet borrow page 1's size. */
+function sizePage(p) {
+  const src = p.pdfPage || S.pages[0].pdfPage;
+  const vp = src.getViewport({ scale: S.scale });
+  if (p.pdfPage) p.viewport = vp;
+  p.el.style.width = `${Math.floor(vp.width)}px`;
+  p.el.style.height = `${Math.floor(vp.height)}px`;
 }
 
 let rafPending = false;
@@ -474,9 +543,17 @@ function renderVisible() {
   requestAnimationFrame(() => {
     rafPending = false;
     const vr = els.viewer.getBoundingClientRect();
+    const keep = vr.height * 4;
     for (const p of S.pages) {
+      if (!p.pdfPage) continue;
       const r = p.el.getBoundingClientRect();
-      if (r.bottom > vr.top - 900 && r.top < vr.bottom + 900 && p.renderedScale !== S.scale) renderPage(p);
+      if (r.bottom > vr.top - 900 && r.top < vr.bottom + 900) {
+        if (p.renderedScale !== S.scale) renderPage(p);
+      } else if (p.canvas && !p.rendering && (r.bottom < vr.top - keep || r.top > vr.bottom + keep)) {
+        // Far off screen: free the bitmap (the biggest memory cost); it is redrawn on the way back.
+        p.canvas.width = 0; p.canvas.remove(); p.canvas = null;
+        p.text.textContent = ""; p.renderedScale = 0;
+      }
     }
   });
 }
@@ -533,6 +610,7 @@ function drawHighlights(p) {
     }
   }
 }
+function redrawPagesAndFind(p) { drawHighlights(p); drawFind(p); }
 function redrawPages(indexes) { for (const i of new Set(indexes)) if (S.pages[i]) drawHighlights(S.pages[i]); }
 
 /* ---------- selection → rectangles ---------- */
@@ -625,6 +703,7 @@ function apply(action, dir) {
   }
   S.dirty = true;
   redrawPages(touched); renderSidebar(); updateUI();
+  persist();
 }
 function undo() { const a = S.undo.pop(); if (!a) return; apply(a, "undo"); S.redo.push(a); toast("Undone", 1200); }
 function redo() { const a = S.redo.pop(); if (!a) return; apply(a, "redo"); S.undo.push(a); }
@@ -737,6 +816,7 @@ function renderSidebar() {
 function reveal(h) {
   const p = S.pages[h.page];
   if (!p) return;
+  if (!p.viewport) { els.viewer.scrollTo({ top: p.el.offsetTop }); return; }
   const v = p.viewport.convertToViewportRectangle(h.rects[0]);
   const top = p.el.offsetTop + Math.min(v[1], v[3]) - els.viewer.clientHeight / 3;
   els.viewer.scrollTo({ top: Math.max(0, top), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
@@ -757,15 +837,18 @@ function setSide(open) {
 }
 function updateUI() {
   const has = !!S.pdf;
-  for (const id of ["saveBtn", "zoomIn", "zoomOut", "zoomFit", "modeBtn"]) $(id).disabled = !has;
+  for (const id of ["zoomIn", "zoomOut", "zoomFit", "modeBtn", "findBtn"]) $(id).disabled = !has;
+  // Saving rewrites every highlight in the file, so wait until all pages' existing ones are loaded.
+  $("saveBtn").disabled = !has || !S.loaded;
+  $("saveBtn").title = has && !S.loaded ? "Still loading pages…" : "";
   $("undoBtn").disabled = !S.undo.length;
-  $("copyBtn").disabled = !S.highlights.length;
+  $("copyBtn").disabled = $("mdBtn").disabled = !S.highlights.length;
   els.dirty.hidden = !(S.dirty && !S.sample);
 }
 
 /* ---------- saving ---------- */
 async function buildPdf() {
-  const { PDFDocument, PDFName, PDFHexString, PDFString } = PDFLib;
+  const { PDFDocument, PDFName, PDFString } = PDFLib;
   let doc;
   try {
     doc = await PDFDocument.load(S.bytes, { updateMetadata: false });
@@ -778,12 +861,24 @@ async function buildPdf() {
   const HL = PDFName.of("Highlight"), SUBTYPE = PDFName.of("Subtype");
 
   // Highlights already in the file were imported into the editor; drop them and write the current set.
+  // Their popup windows (where some viewers keep comment text) go with them.
+  const POPUP = PDFName.of("Popup"), PARENT = PDFName.of("Parent");
+  const removed = new Set();
+  for (const pg of pages) {
+    const annots = pg.node.Annots();
+    if (!annots) continue;
+    for (let i = annots.size() - 1; i >= 0; i--) {
+      const raw = annots.get(i);
+      const d = ctx.lookup(raw);
+      if (d && typeof d.get === "function" && d.get(SUBTYPE) === HL) { removed.add(String(raw)); annots.remove(i); }
+    }
+  }
   for (const pg of pages) {
     const annots = pg.node.Annots();
     if (!annots) continue;
     for (let i = annots.size() - 1; i >= 0; i--) {
       const d = ctx.lookup(annots.get(i));
-      if (d && typeof d.get === "function" && d.get(SUBTYPE) === HL) annots.remove(i);
+      if (d && typeof d.get === "function" && d.get(SUBTYPE) === POPUP && removed.has(String(d.get(PARENT)))) annots.remove(i);
     }
   }
 
@@ -806,8 +901,7 @@ async function buildPdf() {
     });
     const annot = ctx.obj({
       Type: "Annot", Subtype: "Highlight", Rect: rect, QuadPoints: quads, C: [r, g, b], CA: ALPHA, F: 4,
-      P: pg.ref, AP: { N: ctx.register(ap) },
-      Contents: PDFHexString.fromText(h.text || ""), M: PDFString.fromDate(new Date()),
+      P: pg.ref, AP: { N: ctx.register(ap) }, M: PDFString.fromDate(new Date()),
     });
     pg.node.addAnnot(ctx.register(annot));
   }
@@ -824,26 +918,10 @@ async function download() {
   const base = S.name.replace(/\.pdf$/i, "") || "document";
   const filename = `${base} (highlighted).pdf`;
   const blob = new Blob([out], { type: "application/pdf" });
-  const dl = await downloadsP;
-  try {
-    if (dl) {
-      await dl.save({ filename, data: blob });
-    } else {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
-    }
-    S.dirty = false;
-    toast(`Downloaded “${filename}” with ${S.highlights.length} highlight${S.highlights.length === 1 ? "" : "s"}.`);
-  } catch (e) {
-    const code = e && e.code;
-    if (code === "declined") toast("Download cancelled.");
-    else if (code === "rate_limited") toast("A download prompt is already open.");
-    else toast("Downloading isn’t available in this view. Open the page in your browser to save files.", 6000);
-  } finally {
-    btn.disabled = false; updateUI();
-  }
+  const n = S.highlights.length;
+  const ok = await offerFile(filename, blob, `Downloaded “${filename}” with ${n} highlight${n === 1 ? "" : "s"}.`);
+  if (ok) { S.dirty = false; clearStored(); }
+  btn.disabled = false; updateUI();
 }
 
 async function copyAll() {
@@ -856,6 +934,218 @@ async function copyAll() {
     let ok = false; try { ok = document.execCommand("copy"); } catch {}
     ta.remove();
     toast(ok ? "Copied the text of every highlight." : "Couldn’t reach the clipboard here.");
+  }
+}
+
+/* ---------- auto-save in this browser ---------- */
+/* Highlights are kept in localStorage until the PDF is downloaded, keyed by
+   file name, size and a sampled fingerprint, so reopening the same file offers them back. */
+function storageKey(bytes, name) {
+  let h = 0x811c9dc5;
+  const step = Math.max(1, Math.floor(bytes.length / 65536));
+  for (let i = 0; i < bytes.length; i += step) { h ^= bytes[i]; h = Math.imul(h, 0x01000193) >>> 0; }
+  return `highlight:v1:${name}:${bytes.length}:${h.toString(16)}`;
+}
+let persistTimer;
+function persist() {
+  if (!S.key || !S.loaded) return;
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    try {
+      const data = S.highlights.map(({ page, rects, rgb, text }) => ({ page, rects, rgb, text }));
+      localStorage.setItem(S.key, JSON.stringify({ savedAt: Date.now(), highlights: data }));
+    } catch { /* storage unavailable or full: auto-save is best effort */ }
+  }, 400);
+}
+function clearStored() {
+  clearTimeout(persistTimer);
+  try { if (S.key) localStorage.removeItem(S.key); } catch {}
+}
+function offerRestore() {
+  if (!S.key) return;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(S.key) || "null"); } catch {}
+  if (!saved || !Array.isArray(saved.highlights)) return;
+  const n = saved.highlights.length;
+  const d = document.createElement("div"); d.className = "banner"; d.id = "restoreBanner";
+  const when = new Date(saved.savedAt || Date.now()).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  const msg = document.createElement("span");
+  msg.innerHTML = `<b>Unsaved highlights found.</b> <span class="muted"></span>`;
+  msg.querySelector(".muted").textContent = `You had ${n} highlight${n === 1 ? "" : "s"} on this file (${when}) that weren’t downloaded.`;
+  const restore = document.createElement("button"); restore.className = "btn primary"; restore.textContent = "Restore";
+  const discard = document.createElement("button"); discard.className = "btn"; discard.textContent = "Discard";
+  restore.addEventListener("click", () => {
+    const touched = new Set(S.highlights.map((h) => h.page));
+    S.highlights = saved.highlights.map((h) => ({ ...h, id: nextId++ }));
+    S.highlights.forEach((h) => touched.add(h.page));
+    S.undo = []; S.redo = []; S.dirty = true;
+    redrawPages([...touched]); renderSidebar(); updateUI();
+    d.remove(); toast(`Restored ${n} highlight${n === 1 ? "" : "s"}.`);
+  });
+  discard.addEventListener("click", () => { clearStored(); d.remove(); });
+  d.append(msg, restore, discard);
+  els.pages.prepend(d);
+}
+
+/* ---------- find ---------- */
+const F = { query: "", matches: [], index: -1, token: 0 };
+function openFind() {
+  if (!S.pdf) return;
+  $("findbar").hidden = false;
+  const input = $("findInput");
+  input.focus(); input.select();
+}
+function closeFind() {
+  $("findbar").hidden = true;
+  F.query = ""; F.matches = []; F.index = -1; F.token++;
+  $("findStatus").textContent = "";
+  for (const p of S.pages) p.find && (p.find.textContent = "");
+}
+async function runFind(query) {
+  const token = ++F.token;
+  F.query = query; F.matches = []; F.index = -1;
+  const q = query.trim().toLowerCase();
+  for (const p of S.pages) p.find.textContent = "";
+  if (q.length < 2) { $("findStatus").textContent = q ? "Keep typing" : ""; updateFindButtons(); return; }
+  $("findStatus").textContent = "Searching…";
+  for (let i = 0; i < S.pages.length; i++) {
+    const p = S.pages[i];
+    try {
+      if (!p.pdfPage) p.pdfPage = await S.pdf.getPage(i + 1);
+      if (!p.textContent) p.textContent = await p.pdfPage.getTextContent();
+    } catch { continue; }
+    if (token !== F.token) return;
+    const items = p.textContent.items;
+    let str = "";
+    const map = [];
+    items.forEach((it, k) => {
+      if (!it.str) { if (it.hasEOL) str += " "; return; }
+      map.push({ k, start: str.length, len: it.str.length });
+      str += it.str;
+      if (it.hasEOL) str += " ";
+    });
+    const lower = str.toLowerCase();
+    let pos = lower.indexOf(q);
+    while (pos !== -1) {
+      const rects = matchRects(items, map, pos, pos + q.length, p.textContent.styles);
+      if (rects.length) F.matches.push({ page: i, rects, text: str.substr(pos, q.length) });
+      pos = lower.indexOf(q, pos + q.length);
+    }
+    drawFind(p);
+  }
+  F.index = F.matches.length ? 0 : -1;
+  showMatch();
+}
+/* PDF-space boxes for characters [s, e) of the page string. A text run only reports
+   its total width, so the offset of a character inside it is the width of the text
+   before it, measured in a font of the same family and scaled to the run's width. */
+const measureCtx = document.createElement("canvas").getContext("2d");
+function runOffset(it, family, chars) {
+  if (chars <= 0) return 0;
+  if (chars >= it.str.length) return it.width || 0;
+  measureCtx.font = `100px ${family}`;
+  const full = measureCtx.measureText(it.str).width;
+  return full > 0 ? ((it.width || 0) * measureCtx.measureText(it.str.slice(0, chars)).width) / full
+                  : ((it.width || 0) * chars) / it.str.length;
+}
+function matchRects(items, map, s, e, styles) {
+  const out = [];
+  for (const m of map) {
+    const a = Math.max(s, m.start), b = Math.min(e, m.start + m.len);
+    if (a >= b) continue;
+    const it = items[m.k];
+    const [, , c, d, x, y] = it.transform;
+    const h = it.height || Math.hypot(c, d) || 10;
+    const family = (styles && styles[it.fontName] && styles[it.fontName].fontFamily) || "sans-serif";
+    const x1 = x + runOffset(it, family, a - m.start), x2 = x + runOffset(it, family, b - m.start);
+    out.push([x1, y - h * 0.22, x2, y + h * 0.82].map(num));
+  }
+  return mergeLines(out);
+}
+function drawFind(p) {
+  const index = S.pages.indexOf(p);
+  p.find.textContent = "";
+  if (!p.viewport || !F.matches.length) return;
+  F.matches.forEach((m, mi) => {
+    if (m.page !== index) return;
+    for (const r of m.rects) {
+      const v = p.viewport.convertToViewportRectangle(r);
+      const div = document.createElement("div");
+      div.className = "find-hit" + (mi === F.index ? " current" : "");
+      Object.assign(div.style, {
+        left: `${Math.min(v[0], v[2]) - 1}px`, top: `${Math.min(v[1], v[3]) - 1}px`,
+        width: `${Math.abs(v[2] - v[0]) + 2}px`, height: `${Math.abs(v[3] - v[1]) + 2}px`,
+      });
+      p.find.appendChild(div);
+    }
+  });
+}
+function showMatch() {
+  const n = F.matches.length;
+  $("findStatus").textContent = n ? `${F.index + 1} of ${n}` : "No matches";
+  updateFindButtons();
+  for (const p of S.pages) drawFind(p);
+  const m = F.matches[F.index];
+  if (!m) return;
+  const p = S.pages[m.page];
+  if (!p.viewport) return;
+  const v = p.viewport.convertToViewportRectangle(m.rects[0]);
+  els.viewer.scrollTo({ top: Math.max(0, p.el.offsetTop + Math.min(v[1], v[3]) - els.viewer.clientHeight / 3) });
+}
+function stepFind(dir) {
+  if (!F.matches.length) return;
+  F.index = (F.index + dir + F.matches.length) % F.matches.length;
+  showMatch();
+}
+function highlightAllMatches() {
+  if (!F.matches.length) return;
+  const rgb = COLORS[S.color].rgb.slice();
+  const items = F.matches.map((m) => ({ id: nextId++, page: m.page, rects: m.rects, rgb, text: m.text }));
+  commit({ type: "add", items });
+  toast(`Highlighted ${items.length} match${items.length === 1 ? "" : "es"}. Press ⌘Z to undo.`);
+}
+function updateFindButtons() {
+  const has = F.matches.length > 0;
+  $("findPrev").disabled = $("findNext").disabled = $("findAll").disabled = !has;
+}
+
+/* ---------- Markdown export ---------- */
+function highlightsMarkdown() {
+  const title = S.sample ? "How to read a paper" : S.name.replace(/\.pdf$/i, "");
+  const lines = [`# Highlights: ${title}`, ""];
+  let page = -1;
+  for (const h of sortedHighlights()) {
+    if (h.page !== page) { if (page !== -1) lines.push(""); page = h.page; lines.push(`## Page ${page + 1}`, ""); }
+    lines.push(`- ${h.text || "(no text found)"}`);
+  }
+  return lines.join("\n") + "\n";
+}
+async function exportMarkdown() {
+  if (!S.highlights.length) return;
+  const base = S.name.replace(/\.pdf$/i, "") || "document";
+  await offerFile(`${base} highlights.md`, new Blob([highlightsMarkdown()], { type: "text/markdown" }), "Exported the highlights as Markdown.");
+}
+/* Hands a file to the viewer: through Claude's download prompt when the page runs
+   inside Claude, otherwise as a normal browser download. Returns true when saved. */
+async function offerFile(filename, blob, doneMsg) {
+  const dl = await downloadsP;
+  try {
+    if (dl) {
+      await dl.save({ filename, data: blob });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+    toast(doneMsg);
+    return true;
+  } catch (e) {
+    const code = e && e.code;
+    if (code === "declined") toast("Download cancelled.");
+    else if (code === "rate_limited") toast("A download prompt is already open.");
+    else toast("Downloading isn’t available in this view. Open the page in your browser to save files.", 6000);
+    return false;
   }
 }
 
@@ -929,6 +1219,21 @@ function bind() {
   $("undoBtn").addEventListener("click", undo);
   $("saveBtn").addEventListener("click", download);
   $("copyBtn").addEventListener("click", copyAll);
+  $("mdBtn").addEventListener("click", exportMarkdown);
+  $("findBtn").addEventListener("click", () => ($("findbar").hidden ? openFind() : closeFind()));
+  $("findClose").addEventListener("click", closeFind);
+  $("findPrev").addEventListener("click", () => stepFind(-1));
+  $("findNext").addEventListener("click", () => stepFind(1));
+  $("findAll").addEventListener("click", highlightAllMatches);
+  let findTimer;
+  $("findInput").addEventListener("input", (e) => { clearTimeout(findTimer); findTimer = setTimeout(() => runFind(e.target.value), 250); });
+  $("findInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (e.target.value !== F.query) { clearTimeout(findTimer); runFind(e.target.value); }
+      else stepFind(e.shiftKey ? -1 : 1);
+    } else if (e.key === "Escape") { e.preventDefault(); closeFind(); }
+  });
   $("sideBtn").addEventListener("click", () => setSide(!(els.main.classList.contains("side-open") || (!isNarrow() && !els.main.classList.contains("no-side")))));
   $("sideClose").addEventListener("click", () => setSide(false));
 
@@ -977,6 +1282,8 @@ function bind() {
     if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
     if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); return; }
     if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); download(); return; }
+    if (mod && e.key.toLowerCase() === "f") { e.preventDefault(); openFind(); return; }
+    if (mod && e.key.toLowerCase() === "g") { e.preventDefault(); stepFind(e.shiftKey ? -1 : 1); return; }
     if (mod || e.altKey) return;
     if (e.key === "Escape") { hidePop(); return; }
     if (e.key.toLowerCase() === "h" && S.pdf) { e.preventDefault(); highlightSelection(); return; }
