@@ -71,9 +71,14 @@ enum Highlighter {
 
     /// The page text underneath a highlight.
     static func text(of annotation: PDFAnnotation, on page: PDFPage) -> String {
-        // Shrink vertically so neighbouring lines that touch the box aren't picked up.
-        let rect = annotation.bounds.insetBy(dx: 0, dy: annotation.bounds.height * 0.3)
-        let raw = page.selection(for: rect)?.string ?? ""
+        // Select along the line's vertical middle: a rect-based selection either
+        // misses glyphs (if shrunk) or grabs neighbouring lines (if not).
+        let b = annotation.bounds
+        var raw = page.selection(from: CGPoint(x: b.minX + 0.5, y: b.midY),
+                                 to: CGPoint(x: b.maxX - 0.5, y: b.midY))?.string ?? ""
+        if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            raw = page.selection(for: b)?.string ?? ""
+        }
         return raw.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 }

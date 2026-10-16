@@ -3,9 +3,9 @@ import PDFKit
 import XCTest
 @testable import Highlight
 
-@MainActor
 final class HighlightTests: XCTestCase {
     /// A one-page PDF containing real text, so PDFKit selections work.
+    @MainActor
     private func makeTextPDF(_ text: String = "Hello highlight world") throws -> PDFDocument {
         let data = NSMutableData()
         var box = CGRect(x: 0, y: 0, width: 612, height: 792)
@@ -22,6 +22,7 @@ final class HighlightTests: XCTestCase {
         return try XCTUnwrap(PDFDocument(data: data as Data))
     }
 
+    @MainActor
     private func highlightCount(_ document: PDFDocument) -> Int {
         (0..<document.pageCount)
             .compactMap { document.page(at: $0) }
@@ -31,6 +32,7 @@ final class HighlightTests: XCTestCase {
     }
 
     /// PDFKit may hand back a converted NSColor, so compare sRGB components.
+    @MainActor
     private func assertSameColor(_ a: NSColor, _ b: NSColor, file: StaticString = #filePath, line: UInt = #line) {
         guard let a = a.usingColorSpace(.sRGB), let b = b.usingColorSpace(.sRGB) else {
             return XCTFail("color not convertible to sRGB", file: file, line: line)
@@ -40,11 +42,13 @@ final class HighlightTests: XCTestCase {
         XCTAssertEqual(a.blueComponent, b.blueComponent, accuracy: 0.02, file: file, line: line)
     }
 
+    @MainActor
     func testQuadPointsAreRelativeAndInPDFOrder() {
         let points = Highlighter.quadPoints(for: CGRect(x: 100, y: 200, width: 50, height: 10))
         XCTAssertEqual(points, [CGPoint(x: 0, y: 10), CGPoint(x: 50, y: 10), CGPoint(x: 0, y: 0), CGPoint(x: 50, y: 0)])
     }
 
+    @MainActor
     func testMakeAnnotationIsHighlight() {
         let annotation = Highlighter.makeAnnotation(bounds: CGRect(x: 0, y: 0, width: 10, height: 10),
                                                     color: HighlightColor.green.nsColor)
@@ -52,6 +56,7 @@ final class HighlightTests: XCTestCase {
         XCTAssertEqual(annotation.quadrilateralPoints?.count, 4)
     }
 
+    @MainActor
     func testHighlightSelectionThenUndoRedo() throws {
         let document = try makeTextPDF()
         let model = DocumentModel()
@@ -72,6 +77,7 @@ final class HighlightTests: XCTestCase {
         XCTAssertEqual(model.highlights.count, 1)
     }
 
+    @MainActor
     func testRemoveHighlightsInSelection() throws {
         let document = try makeTextPDF()
         let model = DocumentModel()
@@ -86,6 +92,7 @@ final class HighlightTests: XCTestCase {
         XCTAssertEqual(model.highlights.count, 1)
     }
 
+    @MainActor
     func testRecolorIsUndoable() throws {
         let document = try makeTextPDF()
         let model = DocumentModel()
@@ -100,6 +107,7 @@ final class HighlightTests: XCTestCase {
         assertSameColor(model.highlights[0].color, HighlightColor.yellow.nsColor)
     }
 
+    @MainActor
     func testSaveRoundTripKeepsHighlights() throws {
         let document = try makeTextPDF()
         let model = DocumentModel()
