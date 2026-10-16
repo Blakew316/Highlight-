@@ -2,8 +2,7 @@ import AppKit
 import PDFKit
 import UniformTypeIdentifiers
 
-/// One highlight as listed in the sidebar. A highlight spanning several lines
-/// is stored as one annotation per line; they are grouped back together here.
+/// One highlight as listed in the sidebar (one annotation, with a quad per line).
 struct HighlightItem: Identifiable {
     let members: [PlacedAnnotation]
     let pageNumber: Int
@@ -377,12 +376,12 @@ final class DocumentModel: ObservableObject {
         var result: [PlacedAnnotation] = []
         for index in 0..<document.pageCount {
             guard let page = document.page(at: index) else { continue }
-            var taken = page.annotations.filter(Highlighter.isHighlight).map(\.bounds)
+            var taken = page.annotations.filter(Highlighter.isHighlight).flatMap(Highlighter.lineRects)
             for passage in passages {
                 for range in Highlighter.occurrences(of: passage.text, on: page) {
                     guard let selection = page.selection(for: range) else { continue }
                     let placed = Highlighter.makeAnnotations(for: selection, color: passage.color.nsColor)
-                    let rects = placed.map { $0.annotation.bounds.insetBy(dx: 1, dy: 1) }
+                    let rects = placed.flatMap { Highlighter.lineRects(of: $0.annotation) }.map { $0.insetBy(dx: 1, dy: 1) }
                     guard !placed.isEmpty,
                           !rects.contains(where: { rect in taken.contains { $0.intersects(rect) } })
                     else { continue }

@@ -8,46 +8,62 @@ struct PlacedAnnotation {
 
 /// Stateless helpers for creating, finding and reading highlight annotations.
 enum Highlighter {
-    /// Builds one highlight annotation per selected line, per page.
-    /// One-per-line keeps highlights tight to the text instead of painting a
-    /// single box over the whole paragraph's bounding rectangle.
-    /// All lines share a group id (stored in each annotation's /NM name) so the
-    /// sidebar can show and remove them as one highlight.
+    /// Builds one highlight annotation per page of `selection`, with one
+    /// quadrilateral per selected line. That is how Preview stores multi-line
+    /// highlights: the highlight stays tight to each line, yet it is one object
+    /// to list, remove or recolor, and it stays one object after saving.
     static func makeAnnotations(for selection: PDFSelection, color: NSColor) -> [PlacedAnnotation] {
-        let group = UUID().uuidString
-        var result: [PlacedAnnotation] = []
+        var linesByPage: [(page: PDFPage, lines: [CGRect])] = []
         for line in selection.selectionsByLine() {
             for page in line.pages {
                 let bounds = line.bounds(for: page)
                 guard bounds.width > 0.5, bounds.height > 0.5 else { continue }
-                let annotation = makeAnnotation(bounds: bounds, color: color)
-                // /NM must be unique per annotation, so each line gets a suffix.
-                annotation.setValue("\(group)\(groupSeparator)\(result.count)", forAnnotationKey: .name)
-                result.append(PlacedAnnotation(annotation: annotation, page: page))
+                if let index = linesByPage.firstIndex(where: { $0.page == page }) {
+                    linesByPage[index].lines.append(bounds)
+                } else {
+                    linesByPage.append((page, [bounds]))
+                }
             }
         }
-        return result
+        return linesByPage.map { PlacedAnnotation(annotation: makeAnnotation(lines: $0.lines, color: color), page: $0.page) }
     }
 
-    static let groupSeparator = "#"
-
-    /// Identifies which highlight a line belongs to. Annotations from other apps
-    /// have no group and stand alone.
+    /// Identifies a highlight for grouping in the sidebar. Each annotation is one highlight.
     static func groupKey(of annotation: PDFAnnotation) -> String {
-        if let name = annotation.value(forAnnotationKey: .name) as? String,
-           let cut = name.range(of: groupSeparator, options: .backwards) {
-            return String(name[..<cut.lowerBound])
-        }
-        return "solo-\(ObjectIdentifier(annotation).hashValue)"
+        "\(ObjectIdentifier(annotation).hashValue)"
     }
 
     /// Creates a highlight annotation covering `bounds` (page coordinates).
     static func makeAnnotation(bounds: CGRect, color: NSColor) -> PDFAnnotation {
+        makeAnnotation(lines: [bounds], color: color)
+    }
+
+    /// Creates one highlight annotation over several line rects (page coordinates).
+    static func makeAnnotation(lines: [CGRect], color: NSColor) -> PDFAnnotation {
+        let bounds = lines.dropFirst().reduce(lines[0]) { $0.union($1) }
         let annotation = PDFAnnotation(bounds: bounds, forType: .highlight, withProperties: nil)
         annotation.color = color
-        // QuadPoints are what other viewers (Preview, Acrobat) use to draw the highlight.
-        annotation.quadrilateralPoints = quadPoints(for: bounds).map { NSValue(point: $0) }
+        // QuadPoints (relative to the annotation's origin) are what PDFKit, Preview and
+        // Acrobat use to draw the highlight, one quad per line.
+        annotation.quadrilateralPoints = lines.flatMap { line in
+            quadPoints(for: line).map { NSValue(point: CGPoint(x: $0.x + line.minX - bounds.minX,
+                                                                y: $0.y + line.minY - bounds.minY)) }
+        }
         return annotation
+    }
+
+    /// The line rects (page coordinates) a highlight covers, from its quads;
+    /// falls back to its bounds when it has none.
+    static func lineRects(of annotation: PDFAnnotation) -> [CGRect] {
+        let origin = annotation.bounds.origin
+        let points = (annotation.quadrilateralPoints ?? []).map { $0.pointValue }
+        guard points.count >= 4 else { return [annotation.bounds] }
+        return stride(from: 0, to: points.count - 3, by: 4).map { i in
+            let quad = points[i..<(i + 4)]
+            let xs = quad.map(\.x), ys = quad.map(\.y)
+            return CGRect(x: origin.x + xs.min()!, y: origin.y + ys.min()!,
+                          width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!)
+        }
     }
 
     /// QuadPoints relative to the annotation origin, in PDF order:
@@ -70,7 +86,8 @@ enum Highlighter {
         for line in selection.selectionsByLine() {
             for page in line.pages {
                 let lineRect = line.bounds(for: page)
-                for annotation in page.annotations where isHighlight(annotation) && annotation.bounds.intersects(lineRect) {
+                for annotation in page.annotations
+                where isHighlight(annotation) && lineRects(of: annotation).contains(where: { $0.intersects(lineRect) }) {
                     if seen.insert(ObjectIdentifier(annotation)).inserted {
                         result.append(PlacedAnnotation(annotation: annotation, page: page))
                     }
@@ -83,7 +100,7 @@ enum Highlighter {
     /// Highlights on `page` containing `point` (page coordinates).
     static func highlights(at point: CGPoint, on page: PDFPage) -> [PlacedAnnotation] {
         page.annotations
-            .filter { isHighlight($0) && $0.bounds.contains(point) }
+            .filter { isHighlight($0) && lineRects(of: $0).contains { $0.contains(point) } }
             .map { PlacedAnnotation(annotation: $0, page: page) }
     }
 
@@ -124,14 +141,17 @@ enum Highlighter {
 
     /// The page text underneath a highlight.
     static func text(of annotation: PDFAnnotation, on page: PDFPage) -> String {
-        // Select along the line's vertical middle: a rect-based selection either
+        // Read each line along its vertical middle: a rect-based selection either
         // misses glyphs (if shrunk) or grabs neighbouring lines (if not).
-        let b = annotation.bounds
-        var raw = page.selection(from: CGPoint(x: b.minX + 0.5, y: b.midY),
-                                 to: CGPoint(x: b.maxX - 0.5, y: b.midY))?.string ?? ""
-        if raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            raw = page.selection(for: b)?.string ?? ""
-        }
+        let lines = lineRects(of: annotation).sorted { ($0.maxY, -$0.minX) > ($1.maxY, -$1.minX) }
+        let raw = lines.map { b -> String in
+            var text = page.selection(from: CGPoint(x: b.minX + 0.5, y: b.midY),
+                                      to: CGPoint(x: b.maxX - 0.5, y: b.midY))?.string ?? ""
+            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                text = page.selection(for: b)?.string ?? ""
+            }
+            return text
+        }.joined(separator: " ")
         return raw.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 }

@@ -51,7 +51,7 @@ final class PassageLibrary: ObservableObject {
     }
 
     /// Collapses runs of whitespace (including line breaks) to single spaces.
-    static func normalize(_ text: String) -> String {
+    nonisolated static func normalize(_ text: String) -> String {
         text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 

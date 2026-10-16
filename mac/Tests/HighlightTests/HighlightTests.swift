@@ -152,13 +152,15 @@ final class HighlightTests: XCTestCase {
         let all = try XCTUnwrap(page.string)
         try model.highlight(XCTUnwrap(page.selection(for: NSRange(location: 0, length: all.count))))
 
-        XCTAssertEqual(highlightCount(document), 2, "one annotation per line")
-        XCTAssertEqual(model.highlights.count, 1, "but one sidebar entry")
+        XCTAssertEqual(highlightCount(document), 1, "one annotation for the whole highlight")
+        let annotation = try XCTUnwrap(page.annotations.first(where: Highlighter.isHighlight))
+        XCTAssertEqual(Highlighter.lineRects(of: annotation).count, 2, "with one quad per line")
+        XCTAssertEqual(model.highlights.count, 1)
         XCTAssertTrue(model.highlights[0].text.contains("First"), model.highlights[0].text)
         XCTAssertTrue(model.highlights[0].text.contains("Second"), model.highlights[0].text)
 
         model.removeHighlights(model.highlights[0].members)
-        XCTAssertEqual(highlightCount(document), 0, "removing the entry removes every line")
+        XCTAssertEqual(highlightCount(document), 0, "removing the entry removes the whole highlight")
         model.undoManager.undo()
 
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -169,7 +171,10 @@ final class HighlightTests: XCTestCase {
 
         let reopened = makeModel()
         reopened.setDocument(try XCTUnwrap(PDFDocument(url: url)), url: url)
-        XCTAssertEqual(reopened.highlights.count, 1, "grouping is kept in the saved file")
+        XCTAssertEqual(reopened.highlights.count, 1, "still one highlight after saving")
+        let saved = try XCTUnwrap(reopened.document?.page(at: 0)?.annotations.first(where: Highlighter.isHighlight))
+        XCTAssertEqual(Highlighter.lineRects(of: saved).count, 2, "quads survive saving")
+        XCTAssertTrue(reopened.highlights[0].text.contains("Second"), reopened.highlights[0].text)
     }
 
     @MainActor
