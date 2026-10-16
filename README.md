@@ -34,16 +34,24 @@ The website works in Safari on iOS:
 | Auto-highlight | Toggle **Auto-highlight**: every selection is highlighted when you let go |
 | Choose a color | Toolbar swatches, or keys **1–5** |
 | Recolor or remove | Click a highlight, then pick a color or **Remove** (or press Delete) |
-| Jump to a highlight | Click it in the Highlights list |
+| Jump to a highlight | Click it in the Highlights list, or **]** / **[** (also ⌥↓ / ⌥↑) for the next and previous |
+| Show one color | Tap a color chip above the Highlights list |
 | Find | ⌘F, then Enter / ⇧Enter for next and previous, or **Highlight all matches** |
 | Copy highlighted text | **Copy all text** at the bottom of the list |
-| Export highlighted text | **Export Markdown** at the bottom of the list |
+| Export | **Export…** at the bottom of the list: the highlighted pages as a PDF, or the highlighted text as Markdown |
+| Highlight a list of phrases | Saved tab → **⋯** → **Highlight Phrases…**, paste one phrase per line |
 | Undo / redo | ⌘Z / ⇧⌘Z |
 | Save | **Download PDF** (⌘S) |
 
 Highlights already in a PDF, including ones made in Preview or by this site earlier, are loaded as editable highlights. Highlights are saved as plain highlights, with no comment or note text attached.
 
 **Saved passages.** Every passage you highlight is saved. When you open another PDF, such as a new copy of the same form, Highlight looks for the same wording (ignoring case and line breaks) and offers to highlight it in the same color. In the sidebar's **Saved** tab you can choose what happens when a PDF opens (**Ask**, **Highlight** automatically, or **Off**), remove passages you no longer want matched, or highlight saved passages in the open PDF on demand. Inside Claude the list is stored privately for your account, so it follows you across devices. Opened as a plain web page, it stays in that browser. Matching is on exact wording, so a reworded section won't match.
+
+**Form templates.** Highlight a form once (text and area boxes over blank lines or fields), then Saved tab → **⋯** → **Save Highlights as Form Template…**. When you open another copy of the same form (same page count, page size and opening text), Highlight offers to highlight the same places.
+
+**Batches.** Saved tab → **⋯** → **Highlight a Batch of PDFs…** applies your saved passages and form templates to many PDFs at once. One file comes back as a PDF and several come back as a zip. The originals aren't changed.
+
+**Move your library between devices and the Mac app.** **⋯** → **Export Library** saves your passages and templates as a `.json` file, and **Import Library…** reads one back, from the website or the Mac app.
 
 **Picks up where you left off.** The site reopens the last PDF you had open, with any highlights you hadn't downloaded yet. Click or tap the file name at the top for your recent files. Recent files and unsaved highlights are kept only in this browser.
 
@@ -52,14 +60,14 @@ Large PDFs open on page 1 right away while the rest load in the background. Page
 ### Limitations
 
 - Password-protected PDFs can't be opened, and encrypted PDFs can be viewed but not saved.
-- Scanned PDFs without a text layer have nothing to select. Run OCR on them first.
+- Scanned PDFs without a text layer have nothing to select. Area highlighting works on them; for text matching, use the Mac app (which reads scanned pages) or run OCR first.
 - On pages that already had highlights, other annotation types (notes, stamps, drawings) aren't drawn on screen. They are still kept in the downloaded file.
 
 ### Development
 
 `site/app.html` is the source. It is the body of the page, the form Claude artifacts publish. `./scripts/build-site.sh` wraps it in a full HTML document at `index.html`. Run that script after editing, and commit both files.
 
-Libraries: [PDF.js](https://mozilla.github.io/pdf.js/) 3.11.174 renders pages and the selectable text layer, and [pdf-lib](https://pdf-lib.js.org/) 1.17.1 writes the highlight annotations.
+Libraries: [PDF.js](https://mozilla.github.io/pdf.js/) 3.11.174 renders pages and the selectable text layer, [pdf-lib](https://pdf-lib.js.org/) 1.17.1 writes the highlight annotations, and [JSZip](https://stuk.github.io/jszip/) 3.10.1 packs batches. Only PDF.js loads at startup: pdf-lib is fetched in the background once a PDF is open, and JSZip only when a batch needs it. The sample document is embedded (2 KB). The highlights list is built in chunks as you scroll, so documents with thousands of highlights stay responsive.
 
 ## Mac app
 
@@ -97,10 +105,18 @@ Then open **Highlight** from Applications, or right-click a PDF in Finder → **
 | Remove / recolor | Right-click a highlight, or select text and press ⌘⌫ to remove |
 | Find | Search field in the toolbar, then ⌘G / ⇧⌘G, or **Highlight All** |
 | Export highlighted text | File → Export Highlights as Markdown… (⇧⌘E) |
+| Export highlighted pages | File → Export Highlighted Pages as PDF… (⌥⌘E) |
+| Next / previous highlight | ⌥⌘↓ / ⌥⌘↑, or the arrows under the list. Color chips above the list show one color |
+| Highlight a list of phrases | Highlight → Highlight Phrases… (⌥⌘L) |
+| Form templates | Highlight → Save Highlights as Form Template…, then Apply Form Template, or let it be offered when the same form opens |
+| Batch | File → Highlight a Batch of PDFs… (⌥⌘B): pick PDFs and an output folder |
+| Library | File → Export Library… / Import Library… (the same file the website uses) |
 | Undo / redo | ⌘Z / ⇧⌘Z |
 | Save / Save As | ⌘S / ⇧⌘S (saves in place, writing to a temp file first) |
 | Zoom | ⌘+, ⌘−, ⌘0 actual size, ⌘9 fit |
 
 Saved passages work the same way as on the website: every passage you highlight is saved, and opening a PDF finds the same wording and offers to highlight it (sidebar → **Saved** tab for Ask / Highlight / Off, and Highlight → Highlight Saved Passages, ⌥⌘H, to run it on demand). The list is kept in the app's settings on your Mac.
+
+**Scanned PDFs.** Pages with no text layer are read in the background with macOS's built-in text recognition ("Reading scanned pages…" in the toolbar). After that, Find, saved passages, phrase lists and templates work on them, and highlights there show their text in the list. You still highlight on a scanned page with **Highlight Area**, because recognized text isn't selectable.
 
 A highlight that spans several lines appears as one entry in the list and is removed or recolored as one. The app asks before quitting or opening another file with unsaved highlights. It refuses PDFs that need a password, because saving would remove the password. `swift test` (needs full Xcode) runs the tests, and CI builds and tests the app on macOS for every change under `mac/`.

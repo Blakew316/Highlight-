@@ -95,11 +95,12 @@ enum Matcher {
 
     // MARK: - Form templates
 
-    /// What identifies a form: page count, the first page's size, and the start of its text.
+    /// What identifies a form: page count, the first page's size, and the start of its
+    /// text, lowercased with whitespace removed (so it matches what the website computes).
     static func signature(of document: PDFDocument) -> (pageCount: Int, size: CGSize, text: String) {
         let first = document.page(at: 0)
         let size = first?.bounds(for: .mediaBox).size ?? .zero
-        let text = String(PassageLibrary.normalize(first?.string ?? "").lowercased().prefix(80))
+        let text = String((first?.string ?? "").lowercased().filter { !$0.isWhitespace }.prefix(80))
         return (document.pageCount, size, text)
     }
 

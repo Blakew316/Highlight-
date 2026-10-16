@@ -157,7 +157,7 @@ final class FeatureTests: XCTestCase {
     func testLibraryFileFromTheWebsiteDecodes() throws {
         let json = """
         {"app":"Highlight","version":1,"passages":[{"text":"Print Name","color":"green"}],
-         "templates":[{"name":"W-9","pageCount":1,"size":[612,792],"signature":"principal #1",
+         "templates":[{"name":"W-9","pageCount":1,"size":[612,792],"signature":"principal#1",
            "highlights":[{"page":0,"rects":[[160,655,320,685]],"color":"pink","text":""}]}]}
         """
         let library = PassageLibrary(defaults: UserDefaults(suiteName: "FeatureTests-\(UUID().uuidString)")!)
