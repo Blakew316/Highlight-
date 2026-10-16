@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import PDFKit
 import UniformTypeIdentifiers
 
@@ -67,6 +68,7 @@ final class DocumentModel: ObservableObject {
     /// 1-based page shown in the PDF view, for the toolbar's page indicator.
     @Published private(set) var currentPageNumber = 0
     private let defaults: UserDefaults
+    private var pageObserver: AnyCancellable?
     private static let recentsKey = "recentFiles.v1"
     static let maxRecents = 10
 
@@ -86,9 +88,10 @@ final class DocumentModel: ObservableObject {
         pdfView.onSelectionFinished = { [weak self] in self?.highlightCurrentSelection() }
         pdfView.menuCustomizer = { [weak self] menu, event in self?.customize(menu, for: event) }
         pdfView.onAreaDrag = { [weak self] page, box, finished in self?.areaDragged(on: page, box: box, finished: finished) }
-        NotificationCenter.default.addObserver(forName: .PDFViewPageChanged, object: pdfView, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.updateCurrentPage() }
-        }
+        // Combine's sink closure is formed here on the main actor and stays isolated to it.
+        pageObserver = NotificationCenter.default.publisher(for: .PDFViewPageChanged, object: pdfView)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.updateCurrentPage() }
     }
 
     var pageCount: Int { document?.pageCount ?? 0 }
