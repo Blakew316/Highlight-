@@ -28,6 +28,7 @@ The website works in Safari on iOS:
 |---|---|
 | Open a PDF | **Open PDF**, or drag a PDF onto the page |
 | Highlight | Select text, then click a color in the popup (or press **H**) |
+| Highlight an area | Turn on **Area** (or press **B**), then drag a box over anything: signature blocks, blank fill-in lines, form fields, or scanned text |
 | Auto-highlight | Toggle **Auto-highlight**: every selection is highlighted when you let go |
 | Choose a color | Toolbar swatches, or keys **1–5** |
 | Recolor or remove | Click a highlight, then pick a color or **Remove** (or press Delete) |
@@ -85,6 +86,7 @@ Then open **Highlight** from Applications, or right-click a PDF in Finder → **
 | Open | ⌘O, or drag a PDF into the window |
 | Highlight selection | ⇧⌘H, the toolbar button, or right-click → Highlight |
 | Highlighter mode | ⌘E: every selection is highlighted right away |
+| Highlight an area | **Highlight Area** in the toolbar (⇧⌘B), then drag a box over anything: signature blocks, blank lines, form fields, scanned text |
 | Color | Toolbar swatches or ⌘1–⌘5 |
 | Remove / recolor | Right-click a highlight, or select text and press ⌘⌫ to remove |
 | Find | Search field in the toolbar, then ⌘G / ⇧⌘G, or **Highlight All** |

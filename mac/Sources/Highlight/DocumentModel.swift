@@ -42,8 +42,20 @@ final class DocumentModel: ObservableObject {
     @Published private(set) var findResults: [PDFSelection] = []
     @Published private(set) var findIndex = 0
     @Published var highlighterMode = false {
-        didSet { pdfView.highlighterMode = highlighterMode }
+        didSet {
+            pdfView.highlighterMode = highlighterMode
+            if highlighterMode { areaMode = false }
+        }
     }
+    /// Drag a box to highlight any area (signature blocks, form fields, scans).
+    @Published var areaMode = false {
+        didSet {
+            pdfView.areaMode = areaMode
+            if areaMode { highlighterMode = false; pdfView.clearSelection() }
+        }
+    }
+    /// The live box shown while dragging in area mode (not part of the document's undo history).
+    private var areaPreview: PlacedAnnotation?
 
     let undoManager = UndoManager()
     let pdfView = HighlightPDFView()
@@ -63,6 +75,7 @@ final class DocumentModel: ObservableObject {
         pdfView.displaysPageBreaks = true
         pdfView.onSelectionFinished = { [weak self] in self?.highlightCurrentSelection() }
         pdfView.menuCustomizer = { [weak self] menu, event in self?.customize(menu, for: event) }
+        pdfView.onAreaDrag = { [weak self] page, box, finished in self?.areaDragged(on: page, box: box, finished: finished) }
     }
 
     var title: String { fileURL?.lastPathComponent ?? "Highlight" }
@@ -203,6 +216,31 @@ final class DocumentModel: ObservableObject {
         return true
     }
 
+    /// Highlights a box on a page (page coordinates). Tiny boxes from a plain click are ignored.
+    @discardableResult
+    func highlightArea(_ box: CGRect, on page: PDFPage) -> Bool {
+        guard box.width >= 4, box.height >= 4 else { return false }
+        let annotation = Highlighter.makeAnnotation(bounds: box, color: color.nsColor)
+        add([PlacedAnnotation(annotation: annotation, page: page)], actionName: "Highlight Area")
+        return true
+    }
+
+    private func areaDragged(on page: PDFPage, box: CGRect, finished: Bool) {
+        if let preview = areaPreview {
+            preview.page.removeAnnotation(preview.annotation)
+            pdfView.annotationsChanged(on: preview.page)
+            areaPreview = nil
+        }
+        if finished {
+            highlightArea(box, on: page)
+        } else if box.width >= 1, box.height >= 1 {
+            let preview = PlacedAnnotation(annotation: Highlighter.makeAnnotation(bounds: box, color: color.nsColor), page: page)
+            page.addAnnotation(preview.annotation)
+            pdfView.annotationsChanged(on: page)
+            areaPreview = preview
+        }
+    }
+
     func removeHighlightsInCurrentSelection() {
         guard let selection = pdfView.currentSelection else { return }
         removeHighlights(in: selection)
@@ -259,7 +297,7 @@ final class DocumentModel: ObservableObject {
                 currentPage = item.pageNumber
                 lines.append(contentsOf: ["## Page \(currentPage)", ""])
             }
-            lines.append("- \(item.text.isEmpty ? "(no text found)" : item.text)")
+            lines.append("- \(item.text.isEmpty ? "(highlighted area)" : item.text)")
         }
         return lines.joined(separator: "\n") + "\n"
     }

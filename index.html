@@ -273,6 +273,10 @@ aside {
 .hl-rect { position: absolute; border-radius: 2px; }
 .hl-rect.flash { animation: flash 1.1s ease-out; }
 @keyframes flash { 0%, 40% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 3px transparent; } }
+/* Area highlight mode: drag a box instead of selecting text. */
+.pages.area-mode .page { cursor: crosshair; touch-action: none; }
+.pages.area-mode .textLayer { pointer-events: none; }
+.area-preview { position: absolute; border-radius: 2px; outline: 1.5px dashed rgba(0, 0, 0, .35); outline-offset: -1px; }
 .find-layer { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .find-hit { position: absolute; border-radius: 3px; box-shadow: 0 0 0 1.5px var(--accent); }
 .find-hit.current { background: color-mix(in srgb, var(--accent) 22%, transparent); box-shadow: 0 0 0 2.5px var(--accent); }
@@ -373,6 +377,7 @@ dialog .row .btn:hover { background: var(--fill); }
   .tools .btn svg { width: 24px; height: 24px; }
   .tools .btn.primary { width: 48px; padding: 0; border-radius: 12px; background: none; color: var(--accent); }
   .tools .btn:disabled { opacity: .3; }
+  .tools #areaBtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-radius: 12px; }
   .swatch-group, .zoom-group, .sep, .hide-narrow, .txt, #modeBtn { display: none !important; }
   #sideBtn { position: relative; }
   #sideCount { position: absolute; top: 6px; right: 2px; background: var(--accent); color: var(--accent-ink); }
@@ -426,6 +431,10 @@ dialog .row .btn:hover { background: var(--fill); }
     <button class="btn mouse-only" id="modeBtn" aria-pressed="false" title="When on, text is highlighted as soon as you finish selecting it">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l4.5 4.5-7 7H5v-4.5z"/><path d="M3 17.5h9"/></svg>
       <span class="txt">Auto-highlight</span>
+    </button>
+    <button class="btn" id="areaBtn" aria-pressed="false" title="Highlight an area: drag a box over anything, such as signature lines, form fields or scanned text (B)">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.6 2.2" aria-hidden="true"><rect x="3" y="4.5" width="14" height="11" rx="1.5"/></svg>
+      <span class="txt">Area</span>
     </button>
     <div class="sep"></div>
     <button class="btn icon" id="findBtn" aria-label="Find in PDF" title="Find (⌘F)">
@@ -620,6 +629,7 @@ async function openBytes(bytes, name, sample) {
   if (S.pdf) S.pdf.destroy();
   const token = ++openToken;
   closeFind();
+  if (S.area) setAreaMode(false);
   Object.assign(S, { pdf, bytes, name, sample, highlights: [], undo: [], redo: [], dirty: false, pages: [], fit: true, loaded: false });
   S.key = sample ? null : storageKey(bytes, name);
 
@@ -887,6 +897,7 @@ function commit(action) {
   apply(action, "do");
   S.undo.push(action); S.redo = [];
   if (S.undo.length > 200) S.undo.shift();
+  updateUI(); // apply() refreshed the toolbar before the action was on the undo stack
 }
 function apply(action, dir) {
   const touched = [];
@@ -908,7 +919,7 @@ function apply(action, dir) {
   persist();
 }
 function undo() { const a = S.undo.pop(); if (!a) return; apply(a, "undo"); S.redo.push(a); toast("Undone", 1200); }
-function redo() { const a = S.redo.pop(); if (!a) return; apply(a, "redo"); S.undo.push(a); }
+function redo() { const a = S.redo.pop(); if (!a) return; apply(a, "redo"); S.undo.push(a); updateUI(); }
 
 /* The selection the popover was opened for. On iPhone, tapping a popover button
    clears the text selection before the tap arrives, so the popover keeps its own copy. */
@@ -990,6 +1001,58 @@ function showHighlightPop(h, anchor) {
 }
 function hidePop() { els.pop.hidden = true; els.pop.dataset.kind = ""; }
 
+/* ---------- area highlight ---------- */
+/* Text selection can only reach real text. Signature blocks, blank fill-in lines,
+   form fields and scanned pages need a box instead: in area mode a drag on a page
+   draws one, and releasing turns it into a highlight like any other. */
+function setAreaMode(on) {
+  S.area = on && !!S.pdf;
+  $("areaBtn").setAttribute("aria-pressed", String(S.area));
+  els.pages.classList.toggle("area-mode", S.area);
+  if (S.area) {
+    if (S.auto) { S.auto = false; $("modeBtn").setAttribute("aria-pressed", "false"); }
+    window.getSelection().removeAllRanges(); hidePop();
+    toast(isTouch() ? "Drag over an area to highlight it. Tap the box button again to scroll." : "Drag a box over any area to highlight it.", 4500);
+  }
+}
+function bindArea() {
+  let drag = null;
+  const local = (p, e) => { const b = p.el.getBoundingClientRect(); return [Math.max(0, Math.min(b.width, e.clientX - b.left)), Math.max(0, Math.min(b.height, e.clientY - b.top))]; };
+  const cancel = () => { if (drag) { drag.box.remove(); drag = null; } };
+  els.pages.addEventListener("pointerdown", (e) => {
+    if (!S.area) return;
+    if (drag) { cancel(); return; } // a second finger means a pinch, not a box
+    const pageEl = e.target.closest && e.target.closest(".page");
+    const p = pageEl && S.pages.find((x) => x.el === pageEl);
+    if (!p || !p.viewport || (e.pointerType === "mouse" && e.button !== 0)) return;
+    e.preventDefault();
+    const box = document.createElement("div"); box.className = "area-preview";
+    box.style.background = css(COLORS[S.color].rgb, 0.45);
+    p.hl.appendChild(box);
+    drag = { p, id: e.pointerId, start: local(p, e), box };
+    try { pageEl.setPointerCapture(e.pointerId); } catch {}
+  });
+  els.pages.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const [x, y] = local(drag.p, e), [sx, sy] = drag.start;
+    Object.assign(drag.box.style, { left: `${Math.min(x, sx)}px`, top: `${Math.min(y, sy)}px`, width: `${Math.abs(x - sx)}px`, height: `${Math.abs(y - sy)}px` });
+  });
+  const finish = async (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const { p, start } = drag;
+    const [x, y] = local(p, e);
+    cancel();
+    if (Math.abs(x - start[0]) < 6 || Math.abs(y - start[1]) < 6) return;
+    const a = p.viewport.convertToPdfPoint(Math.min(x, start[0]), Math.min(y, start[1]));
+    const b = p.viewport.convertToPdfPoint(Math.max(x, start[0]), Math.max(y, start[1]));
+    const rect = [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])].map(num);
+    const text = await textUnder(p, [rect]).catch(() => "");
+    commit({ type: "add", items: [{ id: nextId++, page: S.pages.indexOf(p), rects: [rect], rgb: COLORS[S.color].rgb.slice(), text }] });
+  };
+  els.pages.addEventListener("pointerup", finish);
+  els.pages.addEventListener("pointercancel", cancel);
+}
+
 /* ---------- pinch to zoom (touch) ---------- */
 /* The browser's own pinch would zoom the whole app, toolbar included. Inside the
    viewer, two fingers zoom the document instead: the pages are scaled with a CSS
@@ -1061,7 +1124,8 @@ function renderSidebar() {
     li.className = "item"; li.tabIndex = 0;
     const bar = document.createElement("span"); bar.className = "bar-c"; bar.style.background = css(h.rgb);
     const body = document.createElement("div");
-    const t = document.createElement("span"); t.className = "t"; t.textContent = h.text || "(no text found)";
+    const t = document.createElement("span"); t.className = "t"; t.textContent = h.text || "Highlighted area";
+    if (!h.text) t.style.color = "var(--muted)";
     const pg = document.createElement("span"); pg.className = "p"; pg.textContent = `p. ${h.page + 1}`;
     body.append(t, pg);
     const x = document.createElement("button"); x.className = "x"; x.type = "button"; x.textContent = "×";
@@ -1099,7 +1163,7 @@ function setSide(open) {
 }
 function updateUI() {
   const has = !!S.pdf;
-  for (const id of ["zoomIn", "zoomOut", "zoomFit", "modeBtn", "findBtn"]) $(id).disabled = !has;
+  for (const id of ["zoomIn", "zoomOut", "zoomFit", "modeBtn", "findBtn", "areaBtn"]) $(id).disabled = !has;
   // Saving rewrites every highlight in the file, so wait until all pages' existing ones are loaded.
   $("saveBtn").disabled = !has || !S.loaded;
   $("saveBtn").title = has && !S.loaded ? "Still loading pages…" : "";
@@ -1586,7 +1650,7 @@ function highlightsMarkdown() {
   let page = -1;
   for (const h of sortedHighlights()) {
     if (h.page !== page) { if (page !== -1) lines.push(""); page = h.page; lines.push(`## Page ${page + 1}`, ""); }
-    lines.push(`- ${h.text || "(no text found)"}`);
+    lines.push(`- ${h.text || "(highlighted area)"}`);
   }
   return lines.join("\n") + "\n";
 }
@@ -1705,6 +1769,8 @@ async function makeSample() {
 /* ---------- events ---------- */
 function bind() {
   bindPinch();
+  bindArea();
+  $("areaBtn").addEventListener("click", () => setAreaMode(!S.area));
   for (const k of COLOR_KEYS) {
     const b = swatchButton(k, setColor, k === S.color);
     b.dataset.key = k;
@@ -1714,6 +1780,7 @@ function bind() {
   $("modeBtn").addEventListener("click", () => {
     S.auto = !S.auto;
     $("modeBtn").setAttribute("aria-pressed", String(S.auto));
+    if (S.auto && S.area) setAreaMode(false);
     toast(S.auto ? "Auto-highlight is on. Every selection is highlighted when you let go." : "Auto-highlight is off.");
   });
   $("zoomIn").addEventListener("click", () => { S.fit = false; setScale(Math.min(4, S.scale * 1.2)); });
@@ -1764,9 +1831,9 @@ function bind() {
 
   // Finishing a selection: auto-highlight, or offer the color popover.
   let pointerDown = false;
-  els.pages.addEventListener("pointerdown", (e) => { if (!els.pop.contains(e.target)) pointerDown = true; });
+  els.pages.addEventListener("pointerdown", (e) => { if (!els.pop.contains(e.target) && !S.area) pointerDown = true; });
   document.addEventListener("pointerup", (e) => {
-    if (!pointerDown) return;
+    if (!pointerDown || S.area) return;
     pointerDown = false;
     setTimeout(() => {
       const info = currentSelectionInfo();
@@ -1804,7 +1871,8 @@ function bind() {
     if (mod && e.key.toLowerCase() === "f") { e.preventDefault(); openFind(); return; }
     if (mod && e.key.toLowerCase() === "g") { e.preventDefault(); stepFind(e.shiftKey ? -1 : 1); return; }
     if (mod || e.altKey) return;
-    if (e.key === "Escape") { hidePop(); return; }
+    if (e.key === "Escape") { hidePop(); if (S.area) setAreaMode(false); return; }
+    if (e.key.toLowerCase() === "b" && S.pdf) { e.preventDefault(); setAreaMode(!S.area); return; }
     if (e.key.toLowerCase() === "h" && S.pdf) { e.preventDefault(); highlightSelection(); return; }
     const n = Number(e.key);
     if (n >= 1 && n <= COLOR_KEYS.length) {

@@ -144,6 +144,11 @@ enum Highlighter {
         // Read each line along its vertical middle: a rect-based selection either
         // misses glyphs (if shrunk) or grabs neighbouring lines (if not).
         let lines = lineRects(of: annotation).sorted { ($0.maxY, -$0.minX) > ($1.maxY, -$1.minX) }
+        // A drawn area box can span several lines: read everything inside it.
+        if lines.count == 1, lines[0].height > 24 {
+            let raw = page.selection(for: lines[0])?.string ?? ""
+            return raw.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        }
         let raw = lines.map { b -> String in
             var text = page.selection(from: CGPoint(x: b.minX + 0.5, y: b.midY),
                                       to: CGPoint(x: b.maxX - 0.5, y: b.midY))?.string ?? ""

@@ -48,6 +48,12 @@ struct ContentView: View {
                     Button("Highlight All") { model.highlightAllMatches() }
                         .help("Highlight every match in the current color")
                 }
+                Toggle(isOn: $model.areaMode) {
+                    Label("Highlight Area", systemImage: "rectangle.dashed")
+                }
+                .help("Area highlight: drag a box over anything, such as signature lines, form fields or scanned text (⇧⌘B)")
+                .disabled(model.document == nil)
+
                 Toggle(isOn: $model.highlighterMode) {
                     Label("Highlighter", systemImage: "highlighter")
                 }
@@ -325,7 +331,8 @@ struct HighlightRow: View {
                 .fill(Color(nsColor: item.color.withAlphaComponent(1)))
                 .frame(width: 4)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.text.isEmpty ? "(no text)" : item.text)
+                Text(item.text.isEmpty ? "Highlighted area" : item.text)
+                    .foregroundStyle(item.text.isEmpty ? .secondary : .primary)
                     .lineLimit(3)
                 Text("Page \(item.pageNumber)")
                     .font(.caption)
